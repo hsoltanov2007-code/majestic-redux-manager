@@ -1,0 +1,18 @@
+[
+  {
+    "id": "light-redux",
+    "name": "Light Redux",
+    "version": "1.0.0",
+    "description": "Легкий redux для Majestic RP.",
+    "size": "1.2 GB",
+    "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/light-redux.zip"
+  },
+  {
+    "id": "majestic-redux",
+    "name": "Majestic Redux",
+    "version": "1.1.0",
+    "description": "Основной redux-пак.",
+    "size": "1.5 GB",
+    "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/majestic-redux.zip"
+  }
+]
