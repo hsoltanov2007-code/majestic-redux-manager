@@ -1,37 +1,62 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Majestic Redux Manager",
+
+  "productName": "Hardy MODS",
   "version": "0.1.0",
-  "identifier": "com.hardy.redux",
+  "identifier": "com.hardy.mods",
+
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:8080",
     "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:8080",
     "frontendDist": "../dist"
   },
+
   "app": {
     "windows": [
       {
-        "title": "Majestic Redux Manager",
-        "width": 1200,
-        "height": 800,
+        "title": "Hardy MODS",
+        "width": 1450,
+        "height": 920,
+        "minWidth": 1200,
+        "minHeight": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
+
     "security": {
       "csp": null
     }
   },
+
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": "all",
+
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGRDE4OTQ2QUFBNzAwQTgKUldTb0FLZXFSb25Seno0UkkwYlB3NmtWTXgxc1J4NG4vYkNTNmYyZXNZWExaTjBNMnN3VW40VS8K",
+
+      "endpoints": [
+        "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
