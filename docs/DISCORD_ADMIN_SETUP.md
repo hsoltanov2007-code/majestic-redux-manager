@@ -18,7 +18,7 @@ Do not put Discord or GitHub secrets into the Tauri app. The desktop app is only
 3. Add this redirect URL:
 
 ```txt
-https://hardy-mods-admin-api.YOUR_SUBDOMAIN.workers.dev/auth/discord/callback
+https://majestic-redux-manager.mmeam.workers.dev/auth/discord/callback
 ```
 
 4. Copy `Client ID`.
@@ -31,8 +31,8 @@ admin-worker/wrangler.jsonc
 
 ## Needed links and codes
 
-- Worker URL: `https://hardy-mods-admin-api.YOUR_SUBDOMAIN.workers.dev`
-- Discord Redirect URL: `https://hardy-mods-admin-api.YOUR_SUBDOMAIN.workers.dev/auth/discord/callback`
+- Worker URL: `https://majestic-redux-manager.mmeam.workers.dev`
+- Discord Redirect URL: `https://majestic-redux-manager.mmeam.workers.dev/auth/discord/callback`
 - Discord Client ID: goes into `admin-worker/wrangler.jsonc`.
 - Discord Client Secret: goes only into Wrangler secret `DISCORD_CLIENT_SECRET`.
 - GitHub token: fine-grained token with repository contents read/write for both repos.

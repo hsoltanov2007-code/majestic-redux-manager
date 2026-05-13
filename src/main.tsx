@@ -142,7 +142,7 @@ const REDUX_JSON_URL =
 const LOCAL_STATE_KEY = "hardy-mods-preview-state";
 const ADMIN_API_URL_KEY = "hardy-admin-api-url";
 const ADMIN_TOKEN_KEY = "hardy-admin-token";
-const DEFAULT_ADMIN_API_URL = "https://hardy-mods-admin-api.YOUR_SUBDOMAIN.workers.dev";
+const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
 

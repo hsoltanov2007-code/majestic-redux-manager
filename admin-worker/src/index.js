@@ -13,7 +13,7 @@ export default {
       const route = `${request.method} ${url.pathname}`;
 
       if (route === "GET /health") {
-        return json(request, env, { ok: true, service: "hardy-mods-admin-api" });
+        return json(request, env, { ok: true, service: "majestic-redux-manager" });
       }
 
       if (route === "GET /auth/discord/start") {
@@ -491,7 +491,7 @@ async function github(env, path, init = {}) {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "hardy-mods-admin-api",
+      "User-Agent": "majestic-redux-manager",
       "X-GitHub-Api-Version": "2022-11-28",
       ...(init.headers || {}),
     },
