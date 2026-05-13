@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/AppSidebar";
+import { REDUXES, type Redux } from "@/lib/mockData";
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -15,4 +16,12 @@ function RootComponent() {
       </main>
     </div>
   );
+}
+
+export function useApp() {
+  return {
+    reduxes: REDUXES,
+    onInstall: (_redux: Redux) => undefined,
+    onUninstall: (_redux: Redux) => undefined,
+  };
 }

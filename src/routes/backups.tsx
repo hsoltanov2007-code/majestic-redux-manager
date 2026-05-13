@@ -15,7 +15,13 @@ export const Route = createFileRoute("/backups")({
 type Backup = { id: string; name: string; date: string; size: string; reduxes: number };
 
 const initial: Backup[] = [
-  { id: "b1", name: "Pre-Update Snapshot", date: "May 4, 2026 · 18:42", size: "3.2 GB", reduxes: 5 },
+  {
+    id: "b1",
+    name: "Pre-Update Snapshot",
+    date: "May 4, 2026 · 18:42",
+    size: "3.2 GB",
+    reduxes: 5,
+  },
   { id: "b2", name: "Clean Install", date: "Apr 22, 2026 · 09:15", size: "1.1 GB", reduxes: 0 },
   { id: "b3", name: "Cinematic Setup", date: "Apr 10, 2026 · 22:30", size: "2.7 GB", reduxes: 4 },
 ];

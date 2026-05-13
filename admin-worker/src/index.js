@@ -1,0 +1,692 @@
+const DISCORD_API = "https://discord.com/api";
+const DISCORD_AUTHORIZE_URL = "https://discord.com/oauth2/authorize";
+const DEFAULT_OWNER_ID = "1452029134300774414";
+
+export default {
+  async fetch(request, env) {
+    try {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders(request, env) });
+      }
+
+      const url = new URL(request.url);
+      const route = `${request.method} ${url.pathname}`;
+
+      if (route === "GET /health") {
+        return json(request, env, { ok: true, service: "hardy-mods-admin-api" });
+      }
+
+      if (route === "GET /auth/discord/start") {
+        return startDiscordAuth(request, env);
+      }
+
+      if (route === "GET /auth/discord/callback") {
+        return finishDiscordAuth(request, env);
+      }
+
+      if (route === "POST /auth/logout") {
+        return json(
+          request,
+          env,
+          { ok: true },
+          {
+            "Set-Cookie": cookie("hm_session", "", { maxAge: 0 }),
+          },
+        );
+      }
+
+      if (route === "GET /api/me") {
+        const user = await requireUser(request, env);
+        return json(request, env, { user: await publicUser(user, env) });
+      }
+
+      if (route === "GET /api/admins") {
+        await requireRole(request, env, "owner");
+        return json(request, env, await getAdminState(env));
+      }
+
+      if (route === "POST /api/admins") {
+        const user = await requireRole(request, env, "owner");
+        const body = await readJson(request);
+        const admin = await addAdmin(env, body.discordId, body.label, user.id);
+        return json(request, env, admin);
+      }
+
+      if (request.method === "DELETE" && url.pathname.startsWith("/api/admins/")) {
+        await requireRole(request, env, "owner");
+        const discordId = decodeURIComponent(url.pathname.slice("/api/admins/".length));
+        return json(request, env, await removeAdmin(env, discordId));
+      }
+
+      if (route === "GET /api/catalog") {
+        await requireRole(request, env, "admin");
+        const catalog = await readJsonFile(env, env.DATA_REPO, env.CATALOG_PATH || "redux.json");
+        return json(request, env, normalizeCatalogDocument(catalog));
+      }
+
+      if (route === "PUT /api/catalog") {
+        const user = await requireRole(request, env, "admin");
+        const body = await readJson(request);
+        const catalog = normalizeCatalogDocument(body.catalog ?? body);
+        validateCatalog(catalog);
+
+        const result = await writeJsonFile(
+          env,
+          env.DATA_REPO,
+          env.CATALOG_PATH || "redux.json",
+          catalog,
+          body.message || `Update redux catalog by Discord ${user.id}`,
+        );
+
+        return json(request, env, { ok: true, commit: result.commit });
+      }
+
+      if (route === "PUT /api/latest") {
+        const user = await requireRole(request, env, "owner");
+        const body = await readJson(request);
+        const manifest = body.manifest ?? body;
+        validateLatestManifest(manifest);
+
+        const result = await writeJsonFile(
+          env,
+          env.MANAGER_REPO,
+          env.LATEST_PATH || "latest.json",
+          manifest,
+          body.message || `Update app manifest by Discord ${user.id}`,
+        );
+
+        return json(request, env, { ok: true, commit: result.commit });
+      }
+
+      return json(request, env, { error: "Not found" }, {}, 404);
+    } catch (error) {
+      const status = error.status || 500;
+      return json(request, env, { error: error.message || "Internal error" }, {}, status);
+    }
+  },
+};
+
+async function startDiscordAuth(request, env) {
+  requireEnv(env, ["DISCORD_CLIENT_ID", "DISCORD_REDIRECT_URI"]);
+
+  const state = crypto.randomUUID();
+  const url = new URL(DISCORD_AUTHORIZE_URL);
+  url.searchParams.set("client_id", env.DISCORD_CLIENT_ID);
+  url.searchParams.set("redirect_uri", env.DISCORD_REDIRECT_URI);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "identify");
+  url.searchParams.set("state", state);
+  url.searchParams.set("prompt", "consent");
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url.toString(),
+      "Set-Cookie": cookie("hm_oauth_state", state, { maxAge: 600 }),
+    },
+  });
+}
+
+async function finishDiscordAuth(request, env) {
+  requireEnv(env, ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_REDIRECT_URI"]);
+
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const expectedState = parseCookies(request.headers.get("Cookie")).hm_oauth_state;
+
+  if (!code || !state || state !== expectedState) {
+    throw httpError(400, "Invalid Discord OAuth state");
+  }
+
+  const form = new URLSearchParams();
+  form.set("client_id", env.DISCORD_CLIENT_ID);
+  form.set("client_secret", env.DISCORD_CLIENT_SECRET);
+  form.set("grant_type", "authorization_code");
+  form.set("code", code);
+  form.set("redirect_uri", env.DISCORD_REDIRECT_URI);
+
+  const tokenResponse = await fetch(`${DISCORD_API}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form,
+  });
+
+  if (!tokenResponse.ok) {
+    throw httpError(401, "Discord token exchange failed");
+  }
+
+  const token = await tokenResponse.json();
+  const userResponse = await fetch(`${DISCORD_API}/users/@me`, {
+    headers: { Authorization: `Bearer ${token.access_token}` },
+  });
+
+  if (!userResponse.ok) {
+    throw httpError(401, "Discord user fetch failed");
+  }
+
+  const discordUser = await userResponse.json();
+  const sessionToken = await signSession(
+    {
+      avatar: discordUser.avatar || "",
+      id: discordUser.id,
+      username: discordUser.username || "",
+    },
+    env,
+  );
+
+  const user = await publicUser(await verifySession(sessionToken, env), env);
+  const appLoginUrl = buildAppLoginUrl(request, env, sessionToken);
+  const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Hardy MODS Admin Login</title>
+    <style>
+      body { background:#07070a; color:white; font:16px system-ui; padding:32px; }
+      a { display:inline-block; margin:16px 0; background:#7c3aed; color:#fff; padding:12px 18px; border-radius:12px; font-weight:800; text-decoration:none; }
+      textarea { width:100%; height:160px; background:#111; color:#fff; border:1px solid #333; border-radius:12px; padding:14px; }
+      code { color:#c4b5fd; }
+    </style>
+  </head>
+  <body>
+    <h1>Discord login complete</h1>
+    <p>Role: <code>${escapeHtml(user.role)}</code> · Discord ID: <code>${escapeHtml(user.id)}</code></p>
+    ${appLoginUrl ? `<a href="${escapeHtml(appLoginUrl)}">Open Hardy MODS</a>` : ""}
+    <p>Copy this token into the Hardy MODS Admin panel.</p>
+    <textarea readonly onclick="this.select()">${escapeHtml(sessionToken)}</textarea>
+  </body>
+</html>`;
+
+  const headers = new Headers({
+    "Content-Type": "text/html;charset=utf-8",
+  });
+  headers.append("Set-Cookie", cookie("hm_oauth_state", "", { maxAge: 0 }));
+  headers.append("Set-Cookie", cookie("hm_session", sessionToken, { maxAge: 60 * 60 * 24 * 7 }));
+
+  return new Response(html, { headers });
+}
+
+function buildAppLoginUrl(request, env, sessionToken) {
+  const frontendOrigin = String(env.FRONTEND_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)[0];
+
+  if (!frontendOrigin) return "";
+
+  try {
+    const appUrl = new URL(frontendOrigin);
+    appUrl.searchParams.set("discord_token", sessionToken);
+    appUrl.searchParams.set("admin_api_url", new URL(request.url).origin);
+    return appUrl.toString();
+  } catch {
+    return "";
+  }
+}
+
+async function requireUser(request, env) {
+  const token = readSessionToken(request);
+
+  if (!token) {
+    throw httpError(401, "Login required");
+  }
+
+  return verifySession(token, env);
+}
+
+async function requireRole(request, env, role) {
+  const user = await requireUser(request, env);
+  const resolvedRole = await getRole(user.id, env);
+
+  if (role === "owner" && resolvedRole !== "owner") {
+    throw httpError(403, "Owner role required");
+  }
+
+  if (role === "admin" && !["owner", "admin"].includes(resolvedRole)) {
+    throw httpError(403, "Admin role required");
+  }
+
+  return { ...user, role: resolvedRole };
+}
+
+async function publicUser(user, env) {
+  return {
+    avatar: user.avatar,
+    id: user.id,
+    role: await getRole(user.id, env),
+    username: user.username,
+  };
+}
+
+async function getRole(discordId, env) {
+  if (discordId === ownerId(env)) return "owner";
+
+  const state = await getAdminState(env);
+  return state.admins.some((admin) => admin.discordId === discordId) ? "admin" : "viewer";
+}
+
+async function getAdminState(env) {
+  try {
+    const state = await readJsonFile(env, env.DATA_REPO, env.ADMINS_PATH || "admin/admins.json");
+    return {
+      admins: Array.isArray(state.admins) ? state.admins : [],
+      ownerDiscordId: state.ownerDiscordId || ownerId(env),
+      schemaVersion: 1,
+    };
+  } catch {
+    return {
+      admins: [],
+      ownerDiscordId: ownerId(env),
+      schemaVersion: 1,
+    };
+  }
+}
+
+async function addAdmin(env, discordId, label, createdBy) {
+  const cleanId = String(discordId || "").trim();
+
+  if (!/^\d{15,25}$/.test(cleanId)) {
+    throw httpError(400, "Discord ID must be a numeric snowflake");
+  }
+
+  if (cleanId === ownerId(env)) {
+    throw httpError(400, "Owner does not need to be added as admin");
+  }
+
+  const state = await getAdminState(env);
+  const existing = state.admins.find((admin) => admin.discordId === cleanId);
+
+  if (existing) {
+    return state;
+  }
+
+  state.admins.push({
+    createdAt: new Date().toISOString(),
+    createdBy,
+    discordId: cleanId,
+    label: String(label || "").trim(),
+  });
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.ADMINS_PATH || "admin/admins.json",
+    state,
+    `Add admin ${cleanId}`,
+  );
+
+  return state;
+}
+
+async function removeAdmin(env, discordId) {
+  const state = await getAdminState(env);
+  state.admins = state.admins.filter((admin) => admin.discordId !== discordId);
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.ADMINS_PATH || "admin/admins.json",
+    state,
+    `Remove admin ${discordId}`,
+  );
+
+  return state;
+}
+
+function normalizeCatalogDocument(value) {
+  if (value && typeof value === "object" && Array.isArray(value.categories)) {
+    return {
+      app: {
+        catalogUrl: value.app?.catalogUrl || "",
+        name: value.app?.name || "Hardy MODS",
+      },
+      categories: value.categories,
+      schemaVersion: 1,
+      updatedAt: value.updatedAt || new Date().toISOString(),
+    };
+  }
+
+  if (Array.isArray(value)) {
+    const looksLikeCategories = value.some((entry) => Array.isArray(entry?.mods));
+
+    return {
+      app: {
+        catalogUrl: "",
+        name: "Hardy MODS",
+      },
+      categories: looksLikeCategories
+        ? value
+        : [
+            {
+              description: "Available redux packages",
+              id: "redux",
+              mods: value,
+              title: "Redux Mods",
+            },
+          ],
+      schemaVersion: 1,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    app: {
+      catalogUrl: "",
+      name: "Hardy MODS",
+    },
+    categories: [],
+    schemaVersion: 1,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function validateCatalog(catalog) {
+  if (!Array.isArray(catalog.categories)) {
+    throw httpError(400, "catalog.categories must be an array");
+  }
+
+  const ids = new Set();
+
+  for (const category of catalog.categories) {
+    if (!category.id || !category.title) {
+      throw httpError(400, "Each category needs id and title");
+    }
+
+    if (!Array.isArray(category.mods)) {
+      throw httpError(400, `Category ${category.id} mods must be an array`);
+    }
+
+    for (const mod of category.mods) {
+      if (!mod.id || !mod.name || !mod.version || !mod.downloadUrl) {
+        throw httpError(400, "Each mod needs id, name, version and downloadUrl");
+      }
+
+      if (ids.has(mod.id)) {
+        throw httpError(400, `Duplicate mod id: ${mod.id}`);
+      }
+
+      ids.add(mod.id);
+      validateHttpUrl(mod.downloadUrl, `Invalid downloadUrl for ${mod.id}`);
+    }
+  }
+}
+
+function validateLatestManifest(manifest) {
+  if (!manifest.version || !manifest.platforms?.["windows-x86_64"]) {
+    throw httpError(400, "latest.json needs version and platforms.windows-x86_64");
+  }
+
+  const platform = manifest.platforms["windows-x86_64"];
+
+  if (!platform.url || !platform.signature) {
+    throw httpError(400, "latest.json platform needs url and signature");
+  }
+
+  validateHttpUrl(platform.url, "Invalid installer URL");
+}
+
+function validateHttpUrl(value, message) {
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("bad protocol");
+  } catch {
+    throw httpError(400, message);
+  }
+}
+
+async function readJsonFile(env, repo, path) {
+  const response = await github(env, `/repos/${repo}/contents/${encodeURIComponentPath(path)}`);
+
+  if (response.status === 404) {
+    throw httpError(404, `${path} not found`);
+  }
+
+  if (!response.ok) {
+    throw httpError(response.status, `GitHub read failed for ${path}`);
+  }
+
+  const file = await response.json();
+  return JSON.parse(base64ToText(file.content || ""));
+}
+
+async function writeJsonFile(env, repo, path, value, message) {
+  const encodedPath = encodeURIComponentPath(path);
+  let sha;
+
+  const current = await github(env, `/repos/${repo}/contents/${encodedPath}`);
+
+  if (current.ok) {
+    sha = (await current.json()).sha;
+  } else if (current.status !== 404) {
+    throw httpError(current.status, `GitHub SHA read failed for ${path}`);
+  }
+
+  const body = {
+    branch: env.GITHUB_BRANCH || "main",
+    content: textToBase64(`${JSON.stringify(value, null, 2)}\n`),
+    message,
+    ...(sha ? { sha } : {}),
+  };
+
+  const response = await github(env, `/repos/${repo}/contents/${encodedPath}`, {
+    body: JSON.stringify(body),
+    method: "PUT",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw httpError(response.status, `GitHub write failed: ${text}`);
+  }
+
+  return response.json();
+}
+
+async function github(env, path, init = {}) {
+  requireEnv(env, ["GITHUB_TOKEN"]);
+
+  return fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+      "User-Agent": "hardy-mods-admin-api",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(init.headers || {}),
+    },
+  });
+}
+
+async function signSession(user, env) {
+  requireEnv(env, ["SESSION_SECRET"]);
+
+  const payload = {
+    ...user,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+  };
+  const payloadPart = base64UrlEncode(JSON.stringify(payload));
+  const signature = await hmac(payloadPart, env.SESSION_SECRET);
+
+  return `${payloadPart}.${signature}`;
+}
+
+async function verifySession(token, env) {
+  requireEnv(env, ["SESSION_SECRET"]);
+
+  const [payloadPart, signature] = String(token).split(".");
+
+  if (!payloadPart || !signature) {
+    throw httpError(401, "Invalid session");
+  }
+
+  const expected = await hmac(payloadPart, env.SESSION_SECRET);
+
+  if (signature !== expected) {
+    throw httpError(401, "Invalid session signature");
+  }
+
+  const payload = JSON.parse(base64UrlDecode(payloadPart));
+
+  if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) {
+    throw httpError(401, "Session expired");
+  }
+
+  return payload;
+}
+
+async function hmac(payload, secret) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { hash: "SHA-256", name: "HMAC" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return base64UrlFromBytes(new Uint8Array(signature));
+}
+
+function readSessionToken(request) {
+  const auth = request.headers.get("Authorization") || "";
+
+  if (auth.startsWith("Bearer ")) {
+    return auth.slice("Bearer ".length).trim();
+  }
+
+  return parseCookies(request.headers.get("Cookie")).hm_session;
+}
+
+async function readJson(request) {
+  try {
+    return await request.json();
+  } catch {
+    throw httpError(400, "Invalid JSON body");
+  }
+}
+
+function json(request, env, body, extraHeaders = {}, status = 200) {
+  return new Response(JSON.stringify(body, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json;charset=utf-8",
+      ...corsHeaders(request, env),
+      ...extraHeaders,
+    },
+  });
+}
+
+function corsHeaders(request, env) {
+  const requestOrigin = request.headers.get("Origin") || "";
+  const allowed = new Set(
+    String(
+      env.FRONTEND_ORIGIN ||
+        "http://localhost:8080,http://127.0.0.1:8080,http://tauri.localhost,tauri://localhost",
+    )
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+  const isTauriOrigin = ["http://tauri.localhost", "tauri://localhost"].includes(requestOrigin);
+  const origin =
+    allowed.has(requestOrigin) || isTauriOrigin
+      ? requestOrigin
+      : Array.from(allowed)[0] || requestOrigin;
+
+  return {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
+  };
+}
+
+function cookie(name, value, { maxAge }) {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    "SameSite=None",
+    `Max-Age=${maxAge}`,
+  ];
+
+  return parts.join("; ");
+}
+
+function parseCookies(header) {
+  return Object.fromEntries(
+    String(header || "")
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const index = part.indexOf("=");
+        if (index === -1) return [part, ""];
+        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
+      }),
+  );
+}
+
+function ownerId(env) {
+  return env.OWNER_DISCORD_ID || DEFAULT_OWNER_ID;
+}
+
+function requireEnv(env, names) {
+  const missing = names.filter((name) => !env[name]);
+
+  if (missing.length > 0) {
+    throw httpError(500, `Missing environment variables: ${missing.join(", ")}`);
+  }
+}
+
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function encodeURIComponentPath(path) {
+  return String(path)
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+}
+
+function textToBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToText(value) {
+  const binary = atob(String(value).replace(/\s/g, ""));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function base64UrlEncode(text) {
+  return base64UrlFromBytes(new TextEncoder().encode(text));
+}
+
+function base64UrlDecode(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  return base64ToText(padded);
+}
+
+function base64UrlFromBytes(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}

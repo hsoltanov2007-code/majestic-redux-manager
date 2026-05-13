@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hardy-mods-admin-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "DISCORD_CLIENT_ID": "PASTE_DISCORD_CLIENT_ID",
+    "DISCORD_REDIRECT_URI": "https://hardy-mods-admin-api.YOUR_SUBDOMAIN.workers.dev/auth/discord/callback",
+    "OWNER_DISCORD_ID": "1452029134300774414",
+    "DATA_REPO": "hsoltanov2007-code/majestic-redux-data",
+    "MANAGER_REPO": "hsoltanov2007-code/majestic-redux-manager",
+    "CATALOG_PATH": "redux.json",
+    "ADMINS_PATH": "admin/admins.json",
+    "LATEST_PATH": "latest.json",
+    "GITHUB_BRANCH": "main",
+    "FRONTEND_ORIGIN": "http://localhost:8080,http://127.0.0.1:8080,http://tauri.localhost,tauri://localhost",
+  },
+}

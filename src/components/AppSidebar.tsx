@@ -1,12 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Package,
-  Settings,
-  Archive,
-  Crown,
-  Gamepad2,
-  Activity,
-} from "lucide-react";
+import { Package, Settings, Archive, Crown, Gamepad2, Activity } from "lucide-react";
 
 const nav = [
   { to: "/", label: "Redux List", icon: Package },
@@ -61,15 +54,11 @@ export function AppSidebar({ gtaDetected }: { gtaDetected: boolean }) {
         <div className="flex items-center gap-2">
           <span
             className={`h-2 w-2 rounded-full ${
-              gtaDetected
-                ? "bg-success shadow-[0_0_8px_var(--success)]"
-                : "bg-destructive"
+              gtaDetected ? "bg-success shadow-[0_0_8px_var(--success)]" : "bg-destructive"
             }`}
           />
 
-          <span className="text-sm font-medium">
-            {gtaDetected ? "Detected" : "Not selected"}
-          </span>
+          <span className="text-sm font-medium">{gtaDetected ? "Detected" : "Not selected"}</span>
         </div>
 
         <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">

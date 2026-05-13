@@ -12,7 +12,7 @@ export async function loadReduxList(jsonUrl: string): Promise<Redux[]> {
 export async function installRedux(
   reduxId: string,
   downloadUrl: string,
-  gtaPath: string
+  gtaPath: string,
 ): Promise<string> {
   return await invoke("install_redux", {
     reduxId,
@@ -21,10 +21,7 @@ export async function installRedux(
   });
 }
 
-export async function restoreBackup(
-  reduxId: string,
-  gtaPath: string
-): Promise<string> {
+export async function restoreBackup(reduxId: string, gtaPath: string): Promise<string> {
   return await invoke("restore_backup", {
     reduxId,
     gtaPath,

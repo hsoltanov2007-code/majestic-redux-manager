@@ -10,7 +10,8 @@ export function ReduxCard({
   onInstall: (r: Redux) => void;
   onUninstall: (r: Redux) => void;
 }) {
-  const hasUpdate = redux.installed && redux.installedVersion && redux.installedVersion !== redux.version;
+  const hasUpdate =
+    redux.installed && redux.installedVersion && redux.installedVersion !== redux.version;
 
   return (
     <div className="group glass rounded-2xl p-5 transition-all hover:-translate-y-0.5 hover:shadow-elegant hover:ring-glow">

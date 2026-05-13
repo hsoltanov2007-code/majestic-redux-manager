@@ -7,7 +7,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const [jsonUrl, setJsonUrl] = useState(
-    "https://raw.githubusercontent.com/YOUR_NAME/YOUR_REPO/main/redux.json"
+    "https://raw.githubusercontent.com/YOUR_NAME/YOUR_REPO/main/redux.json",
   );
 
   return (
@@ -15,9 +15,7 @@ function SettingsPage() {
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-6 max-w-2xl">
-        <label className="block text-sm text-white/70 mb-2">
-          GitHub JSON URL
-        </label>
+        <label className="block text-sm text-white/70 mb-2">GitHub JSON URL</label>
 
         <input
           value={jsonUrl}

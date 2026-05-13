@@ -27,7 +27,9 @@ function LibraryPage() {
   });
 
   const installedCount = reduxes.filter((r) => r.installed).length;
-  const updatesCount = reduxes.filter((r) => r.installed && r.installedVersion && r.installedVersion !== r.version).length;
+  const updatesCount = reduxes.filter(
+    (r) => r.installed && r.installedVersion && r.installedVersion !== r.version,
+  ).length;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -55,16 +57,20 @@ function LibraryPage() {
         </div>
 
         <div className="flex p-1 rounded-lg bg-white/5 text-sm">
-          {([
-            ["all", "Все"],
-            ["installed", "Установлено"],
-            ["available", "Доступно"],
-          ] as const).map(([value, label]) => (
+          {(
+            [
+              ["all", "Все"],
+              ["installed", "Установлено"],
+              ["available", "Доступно"],
+            ] as const
+          ).map(([value, label]) => (
             <button
               key={value}
               onClick={() => setTab(value)}
               className={`px-3 py-1.5 rounded-md transition ${
-                tab === value ? "gradient-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"
+                tab === value
+                  ? "gradient-primary text-primary-foreground shadow-glow"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {label}
