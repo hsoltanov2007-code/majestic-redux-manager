@@ -8,6 +8,7 @@ import React, {
 import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
@@ -143,6 +144,7 @@ const REDUX_JSON_URL =
 const LOCAL_STATE_KEY = "hardy-mods-preview-state";
 const ADMIN_API_URL_KEY = "hardy-admin-api-url";
 const ADMIN_TOKEN_KEY = "hardy-admin-token";
+const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
@@ -482,6 +484,27 @@ function readInitialAdminConnection() {
   return { apiUrl, token };
 }
 
+function parseAdminConnectionUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl);
+
+    if (url.protocol !== ADMIN_DEEP_LINK_PROTOCOL && url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    const token = url.searchParams.get("discord_token")?.trim() || "";
+    const apiUrl = url.searchParams.get("admin_api_url")?.trim().replace(/\/+$/, "") || DEFAULT_ADMIN_API_URL;
+
+    if (!token) {
+      return null;
+    }
+
+    return { apiUrl, token };
+  } catch {
+    return null;
+  }
+}
+
 function App() {
   const [page, setPage] = useState<Page>("home");
   const [initialAdminConnection] = useState(readInitialAdminConnection);
@@ -532,6 +555,39 @@ function App() {
 
   const [tauriUpdate, setTauriUpdate] = useState<Update | null>(null);
   const isAuthenticated = Boolean(adminMe);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    let cancelled = false;
+
+    function acceptAdminUrls(urls: string[] | null) {
+      if (cancelled || !urls) return;
+
+      for (const rawUrl of urls) {
+        const connection = parseAdminConnectionUrl(rawUrl);
+
+        if (!connection) continue;
+
+        window.localStorage.setItem(ADMIN_API_URL_KEY, connection.apiUrl);
+        window.localStorage.setItem(ADMIN_TOKEN_KEY, connection.token);
+        setAdminApiUrl(connection.apiUrl);
+        setAdminToken(connection.token);
+        setPage("admin");
+        setStatus("Discord login complete. Checking session...");
+        break;
+      }
+    }
+
+    getCurrent().then(acceptAdminUrls).catch(() => undefined);
+
+    const unlistenPromise = onOpenUrl(acceptAdminUrls);
+
+    return () => {
+      cancelled = true;
+      unlistenPromise.then((unlisten) => unlisten()).catch(() => undefined);
+    };
+  }, []);
 
   useEffect(() => {
     const cleanBase = adminApiUrl.trim().replace(/\/+$/, "");
@@ -961,9 +1017,13 @@ function App() {
     }
   }
 
-  async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const cleanBase = adminApiUrl.trim().replace(/\/+$/, "");
-    const requestToken = adminToken.trim();
+  async function adminRequest<T>(
+    path: string,
+    init: RequestInit = {},
+    connection?: { apiUrl?: string; token?: string },
+  ): Promise<T> {
+    const cleanBase = (connection?.apiUrl || adminApiUrl).trim().replace(/\/+$/, "");
+    const requestToken = (connection?.token || adminToken).trim();
 
     if (!cleanBase || cleanBase.includes("YOUR_SUBDOMAIN")) {
       throw new Error("Set Admin API URL first");
@@ -1014,7 +1074,7 @@ function App() {
         window.location.href = loginUrl;
       }
 
-      setStatus("Discord login opened. After login, return here and press Continue.");
+      setStatus("Discord login opened. After authorization the app will open automatically.");
     } catch (err) {
       setStatus("Discord login open failed: " + String(err));
     }
@@ -1050,16 +1110,21 @@ function App() {
     return "";
   }
 
-  async function loadAdminProfile() {
+  async function loadAdminProfileWithConnection(connection?: { apiUrl?: string; token?: string }) {
     try {
       setLoading(true);
-      saveAdminConnection();
-      const token = await resolveDiscordSessionToken();
+      const cleanUrl = (connection?.apiUrl || adminApiUrl || DEFAULT_ADMIN_API_URL)
+        .trim()
+        .replace(/\/+$/, "");
+      const token = connection?.token?.trim() || (await resolveDiscordSessionToken());
 
       if (!token) {
         setStatus("Login Discord first, then press Continue.");
         return;
       }
+
+      window.localStorage.setItem(ADMIN_API_URL_KEY, cleanUrl);
+      setAdminApiUrl(cleanUrl);
 
       if (token !== adminToken) {
         window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
@@ -1067,14 +1132,18 @@ function App() {
       }
 
       const authHeaders = { Authorization: `Bearer ${token}` };
-      const result = await adminRequest<{ user: AdminUser }>("/api/me", { headers: authHeaders });
+      const result = await adminRequest<{ user: AdminUser }>(
+        "/api/me",
+        { headers: authHeaders },
+        { apiUrl: cleanUrl, token },
+      );
       setAdminMe(result.user);
       setStatus(`Logged as ${result.user.role}`);
 
       if (result.user.role === "owner") {
         const admins = await adminRequest<AdminStateDocument>("/api/admins", {
           headers: authHeaders,
-        });
+        }, { apiUrl: cleanUrl, token });
         setBackendAdmins(admins);
       }
     } catch (err) {
@@ -1082,6 +1151,10 @@ function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadAdminProfile() {
+    await loadAdminProfileWithConnection();
   }
 
   async function logoutDiscord() {

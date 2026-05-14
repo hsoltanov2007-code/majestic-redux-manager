@@ -183,25 +183,34 @@ async function finishDiscordAuth(request, env) {
   );
 
   const user = await publicUser(await verifySession(sessionToken, env), env);
-  const appLoginUrl = buildAppLoginUrl(request, env, sessionToken);
+  const appLoginUrl = buildAppLoginUrl(request, sessionToken);
   const html = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <title>Hardy MODS Admin Login</title>
     <style>
-      body { background:#07070a; color:white; font:16px system-ui; padding:32px; }
+      body { min-height:100vh; margin:0; display:grid; place-items:center; background:#07070a; color:white; font:16px system-ui; }
+      main { width:min(560px, calc(100vw - 40px)); border:1px solid #272133; border-radius:28px; padding:32px; background:linear-gradient(135deg, #0d0b12, #13091f); box-shadow:0 24px 80px rgba(124,58,237,.25); }
       a { display:inline-block; margin:16px 0; background:#7c3aed; color:#fff; padding:12px 18px; border-radius:12px; font-weight:800; text-decoration:none; }
-      textarea { width:100%; height:160px; background:#111; color:#fff; border:1px solid #333; border-radius:12px; padding:14px; }
+      p { color:#c7c1d6; line-height:1.6; }
       code { color:#c4b5fd; }
     </style>
+    <script>
+      const appUrl = ${JSON.stringify(appLoginUrl)};
+      window.addEventListener("load", () => {
+        window.location.href = appUrl;
+      });
+    </script>
   </head>
   <body>
-    <h1>Discord login complete</h1>
+    <main>
+      <h1>Discord login complete</h1>
     <p>Role: <code>${escapeHtml(user.role)}</code> · Discord ID: <code>${escapeHtml(user.id)}</code></p>
-    ${appLoginUrl ? `<a href="${escapeHtml(appLoginUrl)}">Open Hardy MODS</a>` : ""}
-    <p>Copy this token into the Hardy MODS Admin panel.</p>
-    <textarea readonly onclick="this.select()">${escapeHtml(sessionToken)}</textarea>
+      <p>Hardy MODS should open automatically. If Windows asks, allow the browser to open the app.</p>
+      <a href="${escapeHtml(appLoginUrl)}">Open Hardy MODS</a>
+      <p>If nothing opens, install the latest Hardy MODS version and try Login Discord again.</p>
+    </main>
   </body>
 </html>`;
 
@@ -214,21 +223,14 @@ async function finishDiscordAuth(request, env) {
   return new Response(html, { headers });
 }
 
-function buildAppLoginUrl(request, env, sessionToken) {
-  const frontendOrigin = String(env.FRONTEND_ORIGIN || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)[0];
-
-  if (!frontendOrigin) return "";
-
+function buildAppLoginUrl(request, sessionToken) {
   try {
-    const appUrl = new URL(frontendOrigin);
+    const appUrl = new URL("hardy-mods://auth");
     appUrl.searchParams.set("discord_token", sessionToken);
     appUrl.searchParams.set("admin_api_url", new URL(request.url).origin);
     return appUrl.toString();
   } catch {
-    return "";
+    return "hardy-mods://auth";
   }
 }
 
