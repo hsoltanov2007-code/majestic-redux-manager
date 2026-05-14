@@ -582,10 +582,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.54");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.55");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.54/Hardy.MODS_0.1.54_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.55/Hardy.MODS_0.1.55_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -827,7 +827,7 @@ function App() {
             },
           ];
 
-    return source.slice(0, 6);
+    return source.slice(0, 8);
   }, [featuredMods]);
 
   const adminCatalogJson = useMemo(() => catalogToJson(adminCategories), [adminCategories]);
@@ -1208,6 +1208,29 @@ function App() {
     setFilterMode("all");
     setPage("category");
     setStatus(`${mod.name} ready to install`);
+  }
+
+  function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
+    const card = event.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const rx = ((y / rect.height) - 0.5) * -16;
+    const ry = ((x / rect.width) - 0.5) * 18;
+
+    card.style.setProperty("--mx", `${x}px`);
+    card.style.setProperty("--my", `${y}px`);
+    card.style.setProperty("--rx", `${rx}deg`);
+    card.style.setProperty("--ry", `${ry}deg`);
+  }
+
+  function resetHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
+    const card = event.currentTarget;
+
+    card.style.setProperty("--rx", "0deg");
+    card.style.setProperty("--ry", "0deg");
+    card.style.setProperty("--mx", "50%");
+    card.style.setProperty("--my", "50%");
   }
 
   async function adminRequest<T>(
@@ -1962,9 +1985,9 @@ function App() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#050506] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_20%_40%,rgba(124,58,237,.16),transparent_28%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,.08),transparent_24%)]" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_18%_38%,rgba(255,255,255,.10),transparent_26%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,.08),transparent_24%)]" />
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:76px_76px] opacity-35" />
-      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-purple-500/20" />
+      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-white/10" />
       <div className="pointer-events-none fixed right-24 top-24 h-40 w-40 rotate-45 border border-white/10" />
 
       <header className="relative z-20 h-[88px] border-b border-white/10 bg-black/35 backdrop-blur-2xl">
@@ -1974,7 +1997,7 @@ function App() {
               setPage("home");
               setSelectedCategory(null);
             }}
-            className="grid h-12 w-36 place-items-center rounded-2xl border border-purple-500/35 bg-white/[.035] text-white shadow-[0_0_28px_rgba(124,58,237,.18)] transition hover:bg-white/[.08]"
+            className="grid h-12 w-36 place-items-center rounded-2xl border border-white/15 bg-white/[.035] text-white shadow-[0_0_28px_rgba(255,255,255,.08)] transition hover:bg-white/[.08]"
           >
             <Home size={36} />
           </button>
@@ -2000,7 +2023,7 @@ function App() {
             <button
               type="button"
               onClick={openDiscordLogin}
-              className="flex h-12 items-center gap-3 rounded-2xl border border-purple-500/35 bg-purple-500/10 px-6 font-black text-white transition hover:bg-purple-500/20"
+              className="flex h-12 items-center gap-3 rounded-2xl border border-white/15 bg-white/[.06] px-6 font-black text-white transition hover:bg-white/[.12]"
             >
               <LogIn size={18} />
               Войти
@@ -2009,12 +2032,16 @@ function App() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-[1600px] px-8 pb-28">
+      <main
+        className={`relative z-10 mx-auto max-w-[1600px] ${
+          page === "home" ? "h-[calc(100vh-88px)] overflow-hidden px-0 pb-0" : "px-8 pb-28"
+        }`}
+      >
         {tauriUpdate && (
-          <div className="mt-8 overflow-hidden rounded-[28px] border border-purple-500/40 bg-black/45 shadow-[0_0_45px_rgba(168,85,247,.25)]">
-            <div className="flex items-center justify-between gap-6 border-b border-white/10 bg-purple-600/20 px-6 py-5">
+          <div className="mt-8 overflow-hidden rounded-[28px] border border-white/15 bg-black/45 shadow-[0_0_45px_rgba(255,255,255,.12)]">
+            <div className="flex items-center justify-between gap-6 border-b border-white/10 bg-white/[.06] px-6 py-5">
               <div className="flex items-center gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-purple-500 text-white">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-black">
                   <Download size={22} />
                 </div>
                 <div>
@@ -2037,7 +2064,7 @@ function App() {
                 <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
                   Версия
                 </div>
-                <div className="mt-2 font-mono text-lg text-purple-200">v{tauriUpdate.version}</div>
+                <div className="mt-2 font-mono text-lg text-zinc-200">v{tauriUpdate.version}</div>
               </div>
               <div className="border-r border-white/10 px-6 py-4">
                 <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
@@ -2065,7 +2092,7 @@ function App() {
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-white/10">
                   <div
-                    className="h-full rounded-full bg-purple-500 transition-all"
+                    className="h-full rounded-full bg-white transition-all"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -2075,74 +2102,88 @@ function App() {
         )}
 
         {page === "home" && (
-          <section className="relative grid min-h-[calc(100vh-88px)] grid-cols-[minmax(480px,.9fr)_minmax(560px,1.1fr)] items-center gap-10 overflow-hidden pt-10">
+          <section className="home-stage relative grid h-full min-h-0 grid-cols-[minmax(430px,.72fr)_minmax(640px,1.28fr)] items-center gap-8 overflow-hidden">
             <div className="relative z-10 pl-10">
-              <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs font-black uppercase tracking-[.25em] shadow-[inset_0_1px_0_rgba(255,255,255,.12)] backdrop-blur-xl">
-                <span className="h-2 w-2 rounded-full bg-purple-500" />
+              <div className="mb-7 inline-flex items-center gap-3 rounded-full border border-white/18 bg-white/[.07] px-5 py-2 text-xs font-black uppercase tracking-[.25em] text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-xl">
+                <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,.85)]" />
                 THE BEST CATALOG OF MODIFICATIONS
               </div>
 
               <div className="relative inline-block">
                 <img
                   src="/hardy-h.png"
-                  className="mx-auto h-[330px] w-[330px] object-contain opacity-95 drop-shadow-[0_0_50px_rgba(255,255,255,.22)]"
+                  className="mx-auto h-[300px] w-[300px] object-contain opacity-95 drop-shadow-[0_0_50px_rgba(255,255,255,.20)]"
                 />
                 <div className="-mt-16 text-center">
-                  <div className="text-[78px] font-black leading-none text-white drop-shadow-[0_0_18px_rgba(255,255,255,.25)]">
+                  <div className="text-[76px] font-black leading-none text-white drop-shadow-[0_0_22px_rgba(255,255,255,.28)]">
                     HARDY
                   </div>
-                  <div className="text-[76px] font-black leading-none text-purple-500 drop-shadow-[0_0_24px_rgba(168,85,247,.55)]">
+                  <div className="text-[74px] font-black leading-none text-zinc-300 drop-shadow-[0_0_26px_rgba(255,255,255,.32)]">
                     MODS
                   </div>
                 </div>
               </div>
 
-              <div className="mt-12 flex gap-6">
+              <div className="mt-10 flex gap-5">
                 <button
                   type="button"
                   onClick={() => setPage("catalog")}
-                  className="h-16 min-w-[210px] rounded-2xl bg-white px-8 text-xl font-black text-black shadow-[0_0_28px_rgba(255,255,255,.28)] transition hover:scale-[1.03]"
+                  className="h-16 min-w-[210px] rounded-2xl bg-white px-8 text-xl font-black text-black shadow-[0_0_34px_rgba(255,255,255,.30)] transition hover:scale-[1.03]"
                 >
                   Каталог модов
                 </button>
                 <button
                   type="button"
                   onClick={() => setPage("rpfExplorer")}
-                  className="h-16 min-w-[210px] rounded-2xl border border-white/20 bg-white/[.06] px-8 text-xl font-black text-white backdrop-blur-xl transition hover:scale-[1.03] hover:bg-white/[.1]"
+                  className="h-16 min-w-[210px] rounded-2xl border border-white/20 bg-white/[.06] px-8 text-xl font-black text-white backdrop-blur-xl transition hover:scale-[1.03] hover:bg-white/[.11]"
                 >
                   RPF Tools
                 </button>
               </div>
             </div>
 
-            <div className="hero-mod-cloud relative h-[720px]">
-              {heroMods.map(({ category, mod }, index) => (
-                <button
-                  key={`${category.id}-${mod.id}-${index}`}
-                  type="button"
-                  onClick={() => openFeaturedMod(category, mod)}
-                  className={`hero-mod-card hero-mod-card-${index % 6}`}
-                  style={{ animationDelay: `${index * -1.6}s` }}
-                >
-                  <div className="relative h-full overflow-hidden rounded-[26px] border border-white/10 bg-white/[.045] shadow-[0_20px_70px_rgba(0,0,0,.65)] backdrop-blur-xl">
-                    {mod.image ? (
-                      <img src={mod.image} className="h-full w-full object-cover opacity-70" />
-                    ) : (
-                      <div className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.20),transparent_22%),linear-gradient(145deg,rgba(124,58,237,.55),rgba(8,8,10,.86))]" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4 text-left">
-                      <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75">
-                        <span className="h-2 w-2 rounded-full bg-purple-500" />
-                        {category.title || "Redux"}
-                      </div>
-                      <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
-                        {mod.name}
-                      </div>
-                    </div>
+            <div className="hero-rail-stage relative h-full min-h-0">
+              {[0, 1].map((lane) => {
+                const laneMods = [...heroMods, ...heroMods, ...heroMods];
+
+                return (
+                  <div
+                    key={`lane-${lane}`}
+                    className={`hero-rail hero-rail-${lane === 0 ? "up" : "down"}`}
+                  >
+                    {laneMods.map(({ category, mod }, index) => (
+                      <button
+                        key={`${lane}-${category.id}-${mod.id}-${index}`}
+                        type="button"
+                        onPointerMove={moveHeroCardLight}
+                        onPointerLeave={resetHeroCardLight}
+                        onClick={() => openFeaturedMod(category, mod)}
+                        className="hero-strip-card"
+                        style={{ animationDelay: `${index * -0.22}s` }}
+                      >
+                        <div className="hero-strip-card-inner">
+                          {mod.image ? (
+                            <img src={mod.image} className="hero-strip-card-image" />
+                          ) : (
+                            <div className="hero-strip-card-fallback" />
+                          )}
+                          <div className="hero-strip-card-shade" />
+                          <div className="hero-strip-card-light" />
+                          <div className="absolute bottom-4 left-4 right-4 text-left">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
+                              <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
+                              {category.title || "Redux"}
+                            </div>
+                            <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
+                              {mod.name}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
@@ -3081,10 +3122,10 @@ function DiscordLoginScreen({
 }) {
   return (
     <div className="min-h-screen overflow-hidden bg-[#050507] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(124,58,237,.25),transparent_30%)]" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,.12),transparent_30%)]" />
 
       <main className="relative z-10 grid min-h-screen place-items-center px-8 py-12">
-        <div className="w-full max-w-[680px] rounded-[36px] border border-white/10 bg-black/45 p-8 shadow-[0_0_70px_rgba(168,85,247,.22)] backdrop-blur-xl">
+        <div className="w-full max-w-[680px] rounded-[36px] border border-white/10 bg-black/45 p-8 shadow-[0_0_70px_rgba(255,255,255,.13)] backdrop-blur-xl">
           <div className="mb-8 flex items-center gap-4">
             <img src="/hardy-h.png" className="h-14 w-14 object-contain" />
             <div>
@@ -3097,7 +3138,7 @@ function DiscordLoginScreen({
 
           <div className="mb-8 rounded-3xl border border-white/10 bg-white/[.04] p-5">
             <div className="mb-2 flex items-center gap-3 text-lg font-black">
-              <ShieldCheck size={22} className="text-purple-300" />
+              <ShieldCheck size={22} className="text-white/80" />
               Login через Discord
             </div>
             <div className="text-sm leading-6 text-white/55">
@@ -3418,7 +3459,7 @@ function PurpleButton({ children, onClick, disabled }: ButtonActionProps) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-2xl bg-purple-600 px-6 py-4 font-black hover:bg-purple-500 disabled:opacity-40"
+      className="rounded-2xl border border-white/15 bg-white px-6 py-4 font-black text-black shadow-[0_0_24px_rgba(255,255,255,.18)] hover:bg-zinc-200 disabled:opacity-40"
     >
       {children}
     </button>

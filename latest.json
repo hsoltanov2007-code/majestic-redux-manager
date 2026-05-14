@@ -1,11 +1,11 @@
 {
-  "version": "0.1.54",
-  "notes": "Glass UI update, animated home mod cards, simpler RPF patch paths, and refreshed app icon.",
-  "pub_date": "2026-05-14T14:50:55.779Z",
+  "version": "0.1.55",
+  "notes": "No-scroll home screen, monochrome neon UI, and 3D animated mod rails.",
+  "pub_date": "2026-05-14T16:03:38.340Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThQdXZxSVVtZGNBdExsY0VPdzEwRjVjQnNldHlwN2dpemNiR3FsNEN0RFc5OXo4aGo1dFN0eEFCcUo4SE1SM1ErQjl0OFpOYzJBeFM0M1dlTXNPZkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzcwMjM2CWZpbGU6SGFyZHkgTU9EU18wLjEuNTRfeDY0LXNldHVwLmV4ZQo0Z1VCZkN2SUNOUXliTkRMbDFlYm9lSldaMFk0MkdiY1JneWZkU09ORDBoL3ppZ21ySjBudng1dmhkazF4N2grZTFJYXRxRjUwdkp6WE9tQnpJTXdDUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.54/Hardy.MODS_0.1.54_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThFV3ZLQjJLKzh0cWxqSC9KZm9BMHd0VXNIbWpyeGRJdDBKcS9jbnhYdHRCOHA2VXBKL1N0bjBsMzBsS2RxYjZ6NlJYUTNYWEFpTW9nSWp0VlhzR3dvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzc0NjA3CWZpbGU6SGFyZHkgTU9EU18wLjEuNTVfeDY0LXNldHVwLmV4ZQpubmpQakNlUm1tZHpNRG5Xd0xvMnlyS2U5cENPTUdiVkFNMm9VYVZBamRPMFZwWmdFMXo2dzRvZlRFRUxFeVA5bjFXQXprL09SNkVvQytyVzNtUGNEZz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.55/Hardy.MODS_0.1.55_x64-setup.exe"
     }
   }
 }

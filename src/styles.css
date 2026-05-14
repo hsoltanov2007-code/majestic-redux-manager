@@ -206,94 +206,178 @@ div {
   pointer-events: none !important;
 }
 
-.hero-mod-cloud {
-  perspective: 1200px;
+.home-stage {
+  isolation: isolate;
 }
 
-.hero-mod-card {
+.home-stage::before {
+  content: "";
   position: absolute;
-  display: block;
-  width: 230px;
-  height: 315px;
+  inset: 8% 4% 6% 44%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 64% 18%, rgba(255, 255, 255, 0.16), transparent 19%),
+    radial-gradient(circle at 42% 70%, rgba(255, 255, 255, 0.08), transparent 24%);
+  filter: blur(18px);
+  opacity: 0.85;
+}
+
+.hero-rail-stage {
+  perspective: 1500px;
+  mask-image: linear-gradient(to bottom, transparent, black 9%, black 91%, transparent);
+}
+
+.hero-rail-stage::before,
+.hero-rail-stage::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 16%;
+  pointer-events: none;
+}
+
+.hero-rail-stage::before {
+  left: 0;
+  background: linear-gradient(to right, #050506, transparent);
+}
+
+.hero-rail-stage::after {
+  right: 0;
+  background: linear-gradient(to left, #050506, transparent);
+}
+
+.hero-rail {
+  position: absolute;
+  top: 0;
+  display: flex;
+  height: max-content;
+  flex-direction: column;
+  gap: 24px;
   transform-style: preserve-3d;
-  animation-duration: 10s;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
+  will-change: transform;
+}
+
+.hero-rail-up {
+  left: 16%;
+  animation: hero-rail-up 34s linear infinite;
+}
+
+.hero-rail-down {
+  right: 6%;
+  animation: hero-rail-down 38s linear infinite;
+}
+
+.hero-rail-stage:hover .hero-rail {
+  animation-duration: 92s;
+}
+
+.hero-strip-card {
+  --mx: 50%;
+  --my: 50%;
+  --rx: 0deg;
+  --ry: 0deg;
+  position: relative;
+  display: block;
+  width: clamp(174px, 15vw, 235px);
+  height: clamp(240px, 21vw, 318px);
+  flex: 0 0 auto;
+  transform: perspective(1100px) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+  transform-style: preserve-3d;
   transition:
-    filter 220ms ease,
-    transform 220ms ease;
+    filter 180ms ease,
+    transform 120ms ease;
+  will-change: transform;
 }
 
-.hero-mod-card:hover {
-  animation-duration: 24s;
-  filter: brightness(1.15);
-  z-index: 10;
+.hero-strip-card:nth-child(2n) {
+  margin-left: 44px;
 }
 
-.hero-mod-card-0 {
-  left: 6%;
-  top: -6%;
-  transform: rotate(-5deg);
-  animation-name: float-card-up;
+.hero-strip-card:nth-child(3n) {
+  margin-left: -24px;
 }
 
-.hero-mod-card-1 {
-  left: 46%;
-  top: 12%;
-  width: 250px;
-  height: 340px;
-  transform: rotate(4deg);
-  animation-name: float-card-down;
+.hero-strip-card:hover {
+  z-index: 8;
+  filter: brightness(1.18) contrast(1.08);
 }
 
-.hero-mod-card-2 {
-  left: 18%;
-  top: 44%;
-  transform: rotate(-7deg);
-  animation-name: float-card-up;
+.hero-strip-card-inner {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 26px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.025)),
+    rgba(12, 12, 14, 0.72);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 34px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  transform: translateZ(28px);
 }
 
-.hero-mod-card-3 {
-  right: 2%;
-  top: 3%;
-  width: 260px;
-  height: 355px;
-  transform: rotate(5deg);
-  animation-name: float-card-down;
+.hero-strip-card-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  opacity: 0.68;
+  filter: grayscale(0.75) saturate(0.55) contrast(1.08);
 }
 
-.hero-mod-card-4 {
-  right: 8%;
-  top: 52%;
-  width: 260px;
-  height: 355px;
-  transform: rotate(6deg);
-  animation-name: float-card-up;
+.hero-strip-card-fallback {
+  height: 100%;
+  width: 100%;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.24), transparent 22%),
+    linear-gradient(145deg, rgba(245, 245, 245, 0.20), rgba(8, 8, 10, 0.90));
 }
 
-.hero-mod-card-5 {
-  left: 48%;
-  top: 62%;
-  transform: rotate(-4deg);
-  animation-name: float-card-down;
+.hero-strip-card-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent 58%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.20), transparent 28%, rgba(0, 0, 0, 0.20));
 }
 
-@keyframes float-card-up {
-  0%,
-  100% {
-    translate: 0 0;
+.hero-strip-card-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    150px circle at var(--mx) var(--my),
+    rgba(255, 255, 255, 0.42),
+    rgba(255, 255, 255, 0.12) 34%,
+    transparent 62%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.hero-strip-card:hover .hero-strip-card-light {
+  opacity: 1;
+}
+
+@keyframes hero-rail-up {
+  from {
+    transform: translate3d(0, 0, 0) rotateX(8deg) rotateZ(-2deg);
   }
-  50% {
-    translate: 0 -42px;
+  to {
+    transform: translate3d(0, -33.333%, 0) rotateX(8deg) rotateZ(-2deg);
   }
 }
 
-@keyframes float-card-down {
-  0%,
-  100% {
-    translate: 0 0;
+@keyframes hero-rail-down {
+  from {
+    transform: translate3d(0, -33.333%, 0) rotateX(8deg) rotateZ(2deg);
   }
-  50% {
-    translate: 0 42px;
+  to {
+    transform: translate3d(0, 0, 0) rotateX(8deg) rotateZ(2deg);
   }
 }
