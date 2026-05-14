@@ -1,11 +1,11 @@
 {
-  "version": "0.1.50",
-  "notes": "Hardy MODS Update",
-  "pub_date": "2026-05-14T10:52:13.555Z",
+  "version": "0.1.51",
+  "notes": "Hardy MODS test update v0.1.51",
+  "pub_date": "2026-05-14T11:14:38.101Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTFMZjBoV1ozM2ZONG53SDIvQ2VScTNHTmlxcWpROUErSVQ3TUtFcUVvNGRIYlhlOTNDK3pncEN5L04wdWFGTHBtTGFkNm9JQm1aemJCL2tvL3Z3UXc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzU1OTI0CWZpbGU6SGFyZHkgTU9EU18wLjEuNTBfeDY0LXNldHVwLmV4ZQpJRWFnMWJyZkxzNkhUcytQYUlBVHRaOXh4RG8zSzdoZ2JnN3BSTzd2SXAwOThndm43Vk1ZbldFakJRMmFKZFo2WTJwZXA3U0ROTjhlR1BDYTNCUm5Ddz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.50/Hardy.MODS_0.1.50_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThTZ3k4azRsekZ5d3BNZ1FDd2pmMXF0MHU5NFpwRytIZWE3VkpoL0t0UHF3YkNhTXZ2a2hyMVV4NWNGUVdKOXNRdi80L21ZcFhDU1FqbU15OHBtWHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzU3MjU5CWZpbGU6SGFyZHkgTU9EU18wLjEuNTFfeDY0LXNldHVwLmV4ZQp6eEtUa0dqRzZ1RmF1YjE1b01GTXRUYTc4ODFNaUhGWnMvSEIzSnBTMVdTVksxNHBLN0NIa0I2Q1BTQVFOMVdZUzdnd3htcCt4QjNVVTdNTURCdFNBdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.51/Hardy.MODS_0.1.51_x64-setup.exe"
     }
   }
 }
