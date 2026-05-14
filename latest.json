@@ -1,11 +1,11 @@
 {
-  "version": "0.1.59",
-  "notes": "Fix home hero card rails, restore smooth vertical motion, and polish catalog/login animations.",
-  "pub_date": "2026-05-14T21:19:34.367Z",
+  "version": "0.1.60",
+  "notes": "Restore v0.1.58-style hero cards with smoother unclipped motion and keep catalog/login fixes.",
+  "pub_date": "2026-05-14T21:49:24.356Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTZtT0tJcVBUbHVIeGUyc1pESFk5MmZoV0RQbGdFNGxFZzVncmE2UTF1WlVhRkFldFdHckNDT2Jmdis4WS9rdy82aWpnc0VabG0xYW56VlhSK0ZHdUFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzkzNTYzCWZpbGU6SGFyZHkgTU9EU18wLjEuNTlfeDY0LXNldHVwLmV4ZQpqQUtETUN3NVFza1JwUnVxeGFGYktwUHlXOVIwcGRvL3Y3VzRObURvaEN5bFArQzg3Nld3VmE1ZXVxOHlpV0NpMkY3a285ekd6QjQzSVhOTHIvR1pDQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.59/Hardy.MODS_0.1.59_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTVXQm1DQ2MxU2tRdmQydWdMc2xScjk1WTl4UWhXNTZ0RnpkcGpOOTBZMFlMRDlzczlmbEJONWRCRnJJQzQxUWVOdXI2VHhnem1xaWJFNVlQeUpPNlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzk1MzU0CWZpbGU6SGFyZHkgTU9EU18wLjEuNjBfeDY0LXNldHVwLmV4ZQpYWG9kMGZycUZIcTg4Z2hBMXd2WFBaMUZGVldNanVLZ1pFaXFtU3RUdDZOd1p5b1lldTAyd0FtbVhSUWxtRXF5K012dEZ2eldETjdGUUJkdGpuZXBBUT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.60/Hardy.MODS_0.1.60_x64-setup.exe"
     }
   }
 }

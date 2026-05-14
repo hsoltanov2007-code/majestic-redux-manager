@@ -655,10 +655,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.59");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.60");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.59/Hardy.MODS_0.1.59_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.60/Hardy.MODS_0.1.60_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -1346,10 +1346,10 @@ function App() {
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
-      pointer.root.style.setProperty("--hero-rail-up-duration", `${18 + easedProximity * 18}s`);
-      pointer.root.style.setProperty("--hero-rail-down-duration", `${21 + easedProximity * 20}s`);
-      pointer.root.style.setProperty("--hero-spin-duration", `${16 + easedProximity * 14}s`);
-      const shake = easedProximity * 1.25;
+      pointer.root.style.setProperty("--hero-rail-up-duration", `${30 + easedProximity * 24}s`);
+      pointer.root.style.setProperty("--hero-rail-down-duration", `${34 + easedProximity * 26}s`);
+      pointer.root.style.setProperty("--hero-spin-duration", `${12 + easedProximity * 18}s`);
+      const shake = easedProximity * 1.55;
 
       pointer.root.style.setProperty("--hero-shake", `${shake}px`);
       pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
@@ -1364,9 +1364,9 @@ function App() {
 
     heroMotionPointer.current = null;
     event.currentTarget.style.setProperty("--hero-proximity", "0");
-    event.currentTarget.style.setProperty("--hero-rail-up-duration", "18s");
-    event.currentTarget.style.setProperty("--hero-rail-down-duration", "21s");
-    event.currentTarget.style.setProperty("--hero-spin-duration", "16s");
+    event.currentTarget.style.setProperty("--hero-rail-up-duration", "30s");
+    event.currentTarget.style.setProperty("--hero-rail-down-duration", "34s");
+    event.currentTarget.style.setProperty("--hero-spin-duration", "12s");
     event.currentTarget.style.setProperty("--hero-shake", "0px");
     event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
   }
@@ -1376,8 +1376,8 @@ function App() {
     const rect = card.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const rx = (y / rect.height - 0.5) * -3;
-    const ry = (x / rect.width - 0.5) * 4;
+    const rx = (y / rect.height - 0.5) * -10;
+    const ry = (x / rect.width - 0.5) * 12;
 
     card.style.setProperty("--mx", `${x}px`);
     card.style.setProperty("--my", `${y}px`);
@@ -2349,7 +2349,7 @@ function App() {
                                   <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
                                   {category.title || "Redux"}
                                 </div>
-                                <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
+                                <div className="hero-strip-card-title font-black uppercase text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
                                   {mod.name}
                                 </div>
                               </div>
