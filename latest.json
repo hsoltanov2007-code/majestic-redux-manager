@@ -1,11 +1,11 @@
 {
-  "version": "0.1.58",
-  "notes": "Smoother home cards with cursor slowdown, subtle shake, and lighter blur.",
-  "pub_date": "2026-05-14T20:47:17.050Z",
+  "version": "0.1.59",
+  "notes": "Fix home hero card rails, restore smooth vertical motion, and polish catalog/login animations.",
+  "pub_date": "2026-05-14T21:19:34.367Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTNEWEVMMzJaVDVlekpFNjlJVXgvV3B6WWoycFhqN3hxT3JNejA0UlM4aVdiWFpUaWk4Wjd6WDZTRUJUelZDVVROeTZoSEdROVBDaENEVTd4OS93YlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzkxNjE3CWZpbGU6SGFyZHkgTU9EU18wLjEuNThfeDY0LXNldHVwLmV4ZQpZOXdKRlJENE1ud2dJNXVhUWp5NmhtR2JLY01lTHYyV09VYlJ4MnIzcGlyM1BGSHJmSmJ5M0NJTDd3VWczdVIwMXdGL0NQK09jZWJvQWUzamFwWHpBQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.58/Hardy.MODS_0.1.58_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTZtT0tJcVBUbHVIeGUyc1pESFk5MmZoV0RQbGdFNGxFZzVncmE2UTF1WlVhRkFldFdHckNDT2Jmdis4WS9rdy82aWpnc0VabG0xYW56VlhSK0ZHdUFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzkzNTYzCWZpbGU6SGFyZHkgTU9EU18wLjEuNTlfeDY0LXNldHVwLmV4ZQpqQUtETUN3NVFza1JwUnVxeGFGYktwUHlXOVIwcGRvL3Y3VzRObURvaEN5bFArQzg3Nld3VmE1ZXVxOHlpV0NpMkY3a285ekd6QjQzSVhOTHIvR1pDQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.59/Hardy.MODS_0.1.59_x64-setup.exe"
     }
   }
 }
