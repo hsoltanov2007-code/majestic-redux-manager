@@ -1811,15 +1811,15 @@ function App() {
 
       <main className="relative z-10 mx-auto max-w-[1600px] px-8 pb-28">
         {tauriUpdate && (
-          <div className="mt-8 rounded-[28px] border border-purple-500/40 bg-purple-600/20 p-6 shadow-[0_0_45px_rgba(168,85,247,.25)]">
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <div className="text-2xl font-black">
-                  Доступно обновление HARDY MODS {tauriUpdate.version}
+          <div className="mt-8 overflow-hidden rounded-[28px] border border-purple-500/40 bg-black/45 shadow-[0_0_45px_rgba(168,85,247,.25)]">
+            <div className="flex items-center justify-between gap-6 border-b border-white/10 bg-purple-600/20 px-6 py-5">
+              <div className="flex items-center gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-purple-500 text-white">
+                  <Download size={22} />
                 </div>
-
-                <div className="mt-2 text-white/55">
-                  Нажми кнопку, чтобы скачать и установить новую версию.
+                <div>
+                  <div className="text-2xl font-black">Есть обновление</div>
+                  <div className="text-sm text-white/55">Hardy MODS можно обновить сейчас</div>
                 </div>
               </div>
 
@@ -1828,9 +1828,49 @@ function App() {
                 disabled={loading}
                 className="rounded-2xl bg-white px-6 py-4 font-black text-black hover:scale-105 transition disabled:opacity-40"
               >
-                Скачать обновление
+                Скачать и установить
               </button>
             </div>
+
+            <div className="grid grid-cols-[1fr_1fr_1.5fr] border-b border-white/10 text-sm">
+              <div className="border-r border-white/10 px-6 py-4">
+                <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
+                  Версия
+                </div>
+                <div className="mt-2 font-mono text-lg text-purple-200">v{tauriUpdate.version}</div>
+              </div>
+              <div className="border-r border-white/10 px-6 py-4">
+                <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
+                  Статус
+                </div>
+                <div className="mt-2 text-lg font-black">
+                  {loading ? installStep || "Скачивание" : "Готово к скачиванию"}
+                </div>
+              </div>
+              <div className="px-6 py-4">
+                <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
+                  Что делать
+                </div>
+                <div className="mt-2 text-white/65">
+                  Нажми кнопку, app скачает обновление и запустит установщик.
+                </div>
+              </div>
+            </div>
+
+            {loading && installStep && (
+              <div className="px-6 py-5">
+                <div className="mb-2 flex items-center justify-between text-sm text-white/55">
+                  <span>{installStep}</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-purple-500 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
