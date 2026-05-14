@@ -101,7 +101,7 @@ export default {
       return json(request, env, { error: "Not found" }, {}, 404);
     } catch (error) {
       const status = error.status || 500;
-      return json(request, env, { error: error.message || "Internal error" }, {}, status);
+      return errorResponse(error.message || "Internal error", status);
     }
   },
 };
@@ -136,7 +136,10 @@ async function finishDiscordAuth(request, env) {
   const expectedState = parseCookies(request.headers.get("Cookie")).hm_oauth_state;
 
   if (!code || !state || state !== expectedState) {
-    throw httpError(400, "Invalid Discord OAuth state");
+    return authErrorPage(
+      "Invalid Discord OAuth state",
+      "Open the app and click Login Discord again. Do not refresh or reuse the callback URL.",
+    );
   }
 
   const form = new URLSearchParams();
@@ -153,7 +156,11 @@ async function finishDiscordAuth(request, env) {
   });
 
   if (!tokenResponse.ok) {
-    throw httpError(401, "Discord token exchange failed");
+    const detail = await safeResponseText(tokenResponse);
+    return authErrorPage(
+      "Discord token exchange failed",
+      detail || "Check DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI in Cloudflare.",
+    );
   }
 
   const token = await tokenResponse.json();
@@ -162,7 +169,7 @@ async function finishDiscordAuth(request, env) {
   });
 
   if (!userResponse.ok) {
-    throw httpError(401, "Discord user fetch failed");
+    return authErrorPage("Discord user fetch failed", await safeResponseText(userResponse));
   }
 
   const discordUser = await userResponse.json();
@@ -220,6 +227,40 @@ function buildAppLoginUrl(request, env, sessionToken) {
     appUrl.searchParams.set("discord_token", sessionToken);
     appUrl.searchParams.set("admin_api_url", new URL(request.url).origin);
     return appUrl.toString();
+  } catch {
+    return "";
+  }
+}
+
+function authErrorPage(title, detail = "") {
+  return new Response(
+    `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Hardy MODS Login Error</title>
+    <style>
+      body { background:#07070a; color:white; font:16px system-ui; padding:32px; }
+      code, pre { color:#fca5a5; white-space:pre-wrap; }
+      a { color:#c4b5fd; }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(title)}</h1>
+    ${detail ? `<pre>${escapeHtml(detail)}</pre>` : ""}
+    <p>Close this tab and try Login Discord again from the app.</p>
+  </body>
+</html>`,
+    {
+      status: 400,
+      headers: { "Content-Type": "text/html;charset=utf-8" },
+    },
+  );
+}
+
+async function safeResponseText(response) {
+  try {
+    return await response.text();
   } catch {
     return "";
   }
@@ -572,6 +613,18 @@ function json(request, env, body, extraHeaders = {}, status = 200) {
       "Content-Type": "application/json;charset=utf-8",
       ...corsHeaders(request, env),
       ...extraHeaders,
+    },
+  });
+}
+
+function errorResponse(message, status = 500) {
+  return new Response(JSON.stringify({ error: message }, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json;charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     },
   });
 }
