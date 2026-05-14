@@ -554,6 +554,49 @@ fn backup_one_file(source: &Path, gta_dir: &Path, backup_dir: &Path) -> Result<(
     Ok(())
 }
 
+fn resolve_rpf_path(gta_dir: &Path, rpf_path: &str) -> Result<(PathBuf, String), String> {
+    let direct = safe_join(gta_dir, rpf_path)?;
+
+    if direct.exists() {
+        return Ok((direct, rpf_path.replace('\\', "/")));
+    }
+
+    let normalized = rpf_path.replace('\\', "/");
+
+    if !normalized.starts_with("mods/") {
+        let with_mods = format!("mods/{}", normalized);
+        let candidate = safe_join(gta_dir, &with_mods)?;
+
+        if candidate.exists() {
+            return Ok((candidate, with_mods));
+        }
+    }
+
+    Err(format!("RPF file not found: {}", rpf_path))
+}
+
+fn split_rpf_patch_path(patch: &RpfPatch) -> RpfPatch {
+    let normalized = patch.rpf_path.replace('\\', "/");
+
+    if let Some(index) = normalized.to_lowercase().find(".rpf/") {
+        let split_at = index + ".rpf".len();
+        let rpf_path = normalized[..split_at].to_string();
+        let internal_tail = normalized[split_at + 1..].to_string();
+
+        return RpfPatch {
+            file: patch.file.clone(),
+            internal_path: if patch.internal_path.trim().is_empty() {
+                internal_tail
+            } else {
+                patch.internal_path.clone()
+            },
+            rpf_path,
+        };
+    }
+
+    patch.clone()
+}
+
 fn apply_rpf_patches(
     explorer_exe: &Path,
     extract_path: &Path,
@@ -566,16 +609,13 @@ fn apply_rpf_patches(
     let mut seen_rpfs = HashSet::new();
 
     for patch in patches {
+        let patch = split_rpf_patch_path(patch);
         validate_relative_text_path(&patch.rpf_path, "rpfPath")?;
         validate_relative_text_path(&patch.internal_path, "internalPath")?;
         validate_relative_text_path(&patch.file, "file")?;
 
-        let rpf_path = safe_join(gta_dir, &patch.rpf_path)?;
+        let (rpf_path, installed_rpf_path) = resolve_rpf_path(gta_dir, &patch.rpf_path)?;
         let source_path = patch_source_path(extract_path, install_root, &patch.file)?;
-
-        if !rpf_path.exists() {
-            return Err(format!("RPF file not found: {}", patch.rpf_path));
-        }
 
         backup_one_file(&rpf_path, gta_dir, backup_dir)?;
 
@@ -593,8 +633,8 @@ fn apply_rpf_patches(
             return Err(String::from_utf8_lossy(&output.stderr).to_string());
         }
 
-        if seen_rpfs.insert(patch.rpf_path.clone()) {
-            patched_rpfs.push(patch.rpf_path.clone());
+        if seen_rpfs.insert(installed_rpf_path.clone()) {
+            patched_rpfs.push(installed_rpf_path);
         }
     }
 

@@ -16,6 +16,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 
 import {
   ArrowLeft,
+  Bell,
   Clipboard,
   Download,
   FileArchive,
@@ -25,6 +26,8 @@ import {
   FolderOpen,
   FolderSearch,
   Gamepad2,
+  Home,
+  LogIn,
   LogOut,
   Package,
   Plus,
@@ -424,7 +427,30 @@ function createRpfPatch(): RpfPatch {
   return {
     file: "patch/file.meta",
     internalPath: "x64/path/file.meta",
-    rpfPath: "mods/update/update.rpf",
+    rpfPath: "update/update.rpf",
+  };
+}
+
+function updateRpfPatchField(patch: RpfPatch, field: keyof RpfPatch, value: string): RpfPatch {
+  const normalized = value.replaceAll("\\", "/").trim();
+
+  if (field === "rpfPath") {
+    const markerIndex = normalized.toLowerCase().indexOf(".rpf/");
+
+    if (markerIndex >= 0) {
+      const rpfEnd = markerIndex + ".rpf".length;
+
+      return {
+        ...patch,
+        rpfPath: normalized.slice(0, rpfEnd),
+        internalPath: normalized.slice(rpfEnd + 1),
+      };
+    }
+  }
+
+  return {
+    ...patch,
+    [field]: field === "file" || field === "internalPath" || field === "rpfPath" ? normalized : value,
   };
 }
 
@@ -556,10 +582,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.53");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.54");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.53/Hardy.MODS_0.1.53_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.54/Hardy.MODS_0.1.54_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -748,6 +774,61 @@ function App() {
       return true;
     });
   }, [selectedCategory, searchText, filterMode, installedRedux]);
+
+  const featuredMods = useMemo(() => {
+    return categories.flatMap((category) =>
+      category.mods.slice(0, 3).map((mod) => ({
+        category,
+        mod,
+      })),
+    );
+  }, [categories]);
+
+  const heroMods = useMemo(() => {
+    const source =
+      featuredMods.length > 0
+        ? featuredMods
+        : [
+            {
+              category: createAdminCategory(1),
+              mod: {
+                ...createAdminMod(1),
+                description: "Redux visual package",
+                image: "",
+                name: "Majestic Redux",
+              },
+            },
+            {
+              category: createAdminCategory(1),
+              mod: {
+                ...createAdminMod(2),
+                description: "Player build",
+                image: "",
+                name: "Killa Tops",
+              },
+            },
+            {
+              category: createAdminCategory(1),
+              mod: {
+                ...createAdminMod(3),
+                description: "RPF ready pack",
+                image: "",
+                name: "Venom Redux",
+              },
+            },
+            {
+              category: createAdminCategory(1),
+              mod: {
+                ...createAdminMod(4),
+                description: "Graphics bundle",
+                image: "",
+                name: "Best Redux",
+              },
+            },
+          ];
+
+    return source.slice(0, 6);
+  }, [featuredMods]);
 
   const adminCatalogJson = useMemo(() => catalogToJson(adminCategories), [adminCategories]);
 
@@ -1045,7 +1126,7 @@ function App() {
                   ? {
                       ...mod,
                       rpfPatches: (mod.rpfPatches || []).map((patch, index) =>
-                        index === patchIndex ? { ...patch, [field]: value } : patch,
+                        index === patchIndex ? updateRpfPatchField(patch, field, value) : patch,
                       ),
                     }
                   : mod,
@@ -1119,6 +1200,14 @@ function App() {
     } catch {
       setStatus(`${label} is ready in the text box`);
     }
+  }
+
+  function openFeaturedMod(category: Category, mod: ModItem) {
+    setSelectedCategory(category);
+    setSearchText(mod.name);
+    setFilterMode("all");
+    setPage("category");
+    setStatus(`${mod.name} ready to install`);
   }
 
   async function adminRequest<T>(
@@ -1872,44 +1961,50 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#050507] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(124,58,237,.25),transparent_30%)]" />
+    <div className="min-h-screen overflow-hidden bg-[#050506] text-white">
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_20%_40%,rgba(124,58,237,.16),transparent_28%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,.08),transparent_24%)]" />
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:76px_76px] opacity-35" />
+      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-purple-500/20" />
+      <div className="pointer-events-none fixed right-24 top-24 h-40 w-40 rotate-45 border border-white/10" />
 
-      <header className="relative z-20 h-[76px] border-b border-white/10 bg-black/30 backdrop-blur-xl">
-        <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between px-8">
+      <header className="relative z-20 h-[88px] border-b border-white/10 bg-black/35 backdrop-blur-2xl">
+        <div className="mx-auto grid h-full max-w-[1600px] grid-cols-[160px_1fr_250px] items-center gap-6 px-7">
           <button
             onClick={() => {
               setPage("home");
               setSelectedCategory(null);
             }}
-            className="flex items-center gap-3"
+            className="grid h-12 w-36 place-items-center rounded-2xl border border-purple-500/35 bg-white/[.035] text-white shadow-[0_0_28px_rgba(124,58,237,.18)] transition hover:bg-white/[.08]"
           >
-            <img src="/hardy-h.png" className="h-10 w-10 object-contain" />
-            <span className="text-xl font-black">HARDY MODS</span>
+            <Home size={36} />
           </button>
 
-          <div className="flex gap-3">
+          <div className="mx-auto flex h-14 items-center gap-2 rounded-[28px] border border-white/10 bg-white/[.045] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-2xl">
             <TopButton onClick={() => setPage("home")}>Главная</TopButton>
             <TopButton onClick={() => setPage("catalog")}>Mods</TopButton>
             <TopButton onClick={() => setPage("rpf")}>RPF Unlocker</TopButton>
             <TopButton onClick={() => setPage("rpfExplorer")}>RPF Explorer</TopButton>
+            <TopButton onClick={() => setPage("settings")}>Settings</TopButton>
             {canOpenAdmin && <TopButton onClick={openAdmin}>Admin</TopButton>}
+          </div>
 
-            <CircleButton onClick={loadCategories}>
-              <RefreshCw size={18} />
+          <div className="flex items-center justify-end gap-3">
+            <CircleButton onClick={() => checkForAppUpdate(false)}>
+              <Bell size={18} />
             </CircleButton>
 
             <CircleButton onClick={detectGta}>
               <FolderSearch size={18} />
             </CircleButton>
 
-            <CircleButton onClick={() => setPage("settings")}>
-              <Settings size={18} />
-            </CircleButton>
-
-            <CircleButton onClick={logoutDiscord}>
-              <LogOut size={18} />
-            </CircleButton>
+            <button
+              type="button"
+              onClick={openDiscordLogin}
+              className="flex h-12 items-center gap-3 rounded-2xl border border-purple-500/35 bg-purple-500/10 px-6 font-black text-white transition hover:bg-purple-500/20"
+            >
+              <LogIn size={18} />
+              Войти
+            </button>
           </div>
         </div>
       </header>
@@ -1980,6 +2075,79 @@ function App() {
         )}
 
         {page === "home" && (
+          <section className="relative grid min-h-[calc(100vh-88px)] grid-cols-[minmax(480px,.9fr)_minmax(560px,1.1fr)] items-center gap-10 overflow-hidden pt-10">
+            <div className="relative z-10 pl-10">
+              <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs font-black uppercase tracking-[.25em] shadow-[inset_0_1px_0_rgba(255,255,255,.12)] backdrop-blur-xl">
+                <span className="h-2 w-2 rounded-full bg-purple-500" />
+                THE BEST CATALOG OF MODIFICATIONS
+              </div>
+
+              <div className="relative inline-block">
+                <img
+                  src="/hardy-h.png"
+                  className="mx-auto h-[330px] w-[330px] object-contain opacity-95 drop-shadow-[0_0_50px_rgba(255,255,255,.22)]"
+                />
+                <div className="-mt-16 text-center">
+                  <div className="text-[78px] font-black leading-none text-white drop-shadow-[0_0_18px_rgba(255,255,255,.25)]">
+                    HARDY
+                  </div>
+                  <div className="text-[76px] font-black leading-none text-purple-500 drop-shadow-[0_0_24px_rgba(168,85,247,.55)]">
+                    MODS
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-12 flex gap-6">
+                <button
+                  type="button"
+                  onClick={() => setPage("catalog")}
+                  className="h-16 min-w-[210px] rounded-2xl bg-white px-8 text-xl font-black text-black shadow-[0_0_28px_rgba(255,255,255,.28)] transition hover:scale-[1.03]"
+                >
+                  Каталог модов
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage("rpfExplorer")}
+                  className="h-16 min-w-[210px] rounded-2xl border border-white/20 bg-white/[.06] px-8 text-xl font-black text-white backdrop-blur-xl transition hover:scale-[1.03] hover:bg-white/[.1]"
+                >
+                  RPF Tools
+                </button>
+              </div>
+            </div>
+
+            <div className="hero-mod-cloud relative h-[720px]">
+              {heroMods.map(({ category, mod }, index) => (
+                <button
+                  key={`${category.id}-${mod.id}-${index}`}
+                  type="button"
+                  onClick={() => openFeaturedMod(category, mod)}
+                  className={`hero-mod-card hero-mod-card-${index % 6}`}
+                  style={{ animationDelay: `${index * -1.6}s` }}
+                >
+                  <div className="relative h-full overflow-hidden rounded-[26px] border border-white/10 bg-white/[.045] shadow-[0_20px_70px_rgba(0,0,0,.65)] backdrop-blur-xl">
+                    {mod.image ? (
+                      <img src={mod.image} className="h-full w-full object-cover opacity-70" />
+                    ) : (
+                      <div className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.20),transparent_22%),linear-gradient(145deg,rgba(124,58,237,.55),rgba(8,8,10,.86))]" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4 text-left">
+                      <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75">
+                        <span className="h-2 w-2 rounded-full bg-purple-500" />
+                        {category.title || "Redux"}
+                      </div>
+                      <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
+                        {mod.name}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {false && page === "home" && (
           <>
             <section className="grid grid-cols-2 items-center gap-10 pt-16">
               <div className="pl-10">
@@ -2384,7 +2552,7 @@ function App() {
                               <div>
                                 <div className="font-black">RPF patches</div>
                                 <div className="text-xs text-white/45">
-                                  Replace files inside .rpf after zip download
+                                  Path can start with update/update.rpf; app also tries mods/update/update.rpf
                                 </div>
                               </div>
                               <PrimaryButton onClick={() => addAdminRpfPatch(category.id, mod.id)}>

@@ -205,3 +205,95 @@ div {
 [data-radix-popper-content-wrapper] {
   pointer-events: none !important;
 }
+
+.hero-mod-cloud {
+  perspective: 1200px;
+}
+
+.hero-mod-card {
+  position: absolute;
+  display: block;
+  width: 230px;
+  height: 315px;
+  transform-style: preserve-3d;
+  animation-duration: 10s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  transition:
+    filter 220ms ease,
+    transform 220ms ease;
+}
+
+.hero-mod-card:hover {
+  animation-duration: 24s;
+  filter: brightness(1.15);
+  z-index: 10;
+}
+
+.hero-mod-card-0 {
+  left: 6%;
+  top: -6%;
+  transform: rotate(-5deg);
+  animation-name: float-card-up;
+}
+
+.hero-mod-card-1 {
+  left: 46%;
+  top: 12%;
+  width: 250px;
+  height: 340px;
+  transform: rotate(4deg);
+  animation-name: float-card-down;
+}
+
+.hero-mod-card-2 {
+  left: 18%;
+  top: 44%;
+  transform: rotate(-7deg);
+  animation-name: float-card-up;
+}
+
+.hero-mod-card-3 {
+  right: 2%;
+  top: 3%;
+  width: 260px;
+  height: 355px;
+  transform: rotate(5deg);
+  animation-name: float-card-down;
+}
+
+.hero-mod-card-4 {
+  right: 8%;
+  top: 52%;
+  width: 260px;
+  height: 355px;
+  transform: rotate(6deg);
+  animation-name: float-card-up;
+}
+
+.hero-mod-card-5 {
+  left: 48%;
+  top: 62%;
+  transform: rotate(-4deg);
+  animation-name: float-card-down;
+}
+
+@keyframes float-card-up {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -42px;
+  }
+}
+
+@keyframes float-card-down {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 42px;
+  }
+}
