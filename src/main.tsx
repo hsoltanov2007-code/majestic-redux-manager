@@ -9,6 +9,7 @@ import ReactDOM from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -504,7 +505,6 @@ function App() {
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
   const [adminToken, setAdminToken] = useState(initialAdminConnection.token);
-  const [adminTokenInput, setAdminTokenInput] = useState("");
   const [adminMe, setAdminMe] = useState<AdminUser | null>(null);
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
   const [newAdminDiscordId, setNewAdminDiscordId] = useState("");
@@ -963,7 +963,7 @@ function App() {
 
   async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     const cleanBase = adminApiUrl.trim().replace(/\/+$/, "");
-    const requestToken = (adminTokenInput || adminToken).trim();
+    const requestToken = adminToken.trim();
 
     if (!cleanBase || cleanBase.includes("YOUR_SUBDOMAIN")) {
       throw new Error("Set Admin API URL first");
@@ -989,44 +989,92 @@ function App() {
   }
 
   function saveAdminConnection() {
-    const cleanUrl = adminApiUrl.trim().replace(/\/+$/, "");
-    const cleanToken = (adminTokenInput || adminToken).trim();
+    const cleanUrl = (adminApiUrl || DEFAULT_ADMIN_API_URL).trim().replace(/\/+$/, "");
 
     window.localStorage.setItem(ADMIN_API_URL_KEY, cleanUrl);
     setAdminApiUrl(cleanUrl);
 
-    if (cleanToken) {
-      window.localStorage.setItem(ADMIN_TOKEN_KEY, cleanToken);
-      setAdminToken(cleanToken);
-      setAdminTokenInput("");
-    }
-
     setStatus("Admin API settings saved");
   }
 
-  function openDiscordLogin() {
-    const cleanBase = adminApiUrl.trim().replace(/\/+$/, "");
+  async function openDiscordLogin() {
+    const cleanBase = (adminApiUrl || DEFAULT_ADMIN_API_URL).trim().replace(/\/+$/, "");
 
     if (!cleanBase || cleanBase.includes("YOUR_SUBDOMAIN")) {
       setStatus("Set Admin API URL first");
       return;
     }
 
-    window.open(`${cleanBase}/auth/discord/start`, "_blank", "noopener,noreferrer");
-    setStatus("Discord login opened. Paste the returned token here.");
+    const loginUrl = `${cleanBase}/auth/discord/start`;
+
+    try {
+      if (isTauriRuntime()) {
+        await openUrl(loginUrl);
+      } else {
+        window.location.href = loginUrl;
+      }
+
+      setStatus("Discord login opened. After login, return here and press Continue.");
+    } catch (err) {
+      setStatus("Discord login open failed: " + String(err));
+    }
+  }
+
+  function looksLikeDiscordSessionToken(value: string) {
+    return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value.trim());
+  }
+
+  async function resolveDiscordSessionToken() {
+    const currentToken = adminToken.trim();
+
+    if (looksLikeDiscordSessionToken(currentToken)) {
+      return currentToken;
+    }
+
+    const storedToken = (window.localStorage.getItem(ADMIN_TOKEN_KEY) || "").trim();
+
+    if (looksLikeDiscordSessionToken(storedToken)) {
+      return storedToken;
+    }
+
+    try {
+      const clipboardToken = (await navigator.clipboard.readText()).trim();
+
+      if (looksLikeDiscordSessionToken(clipboardToken)) {
+        return clipboardToken;
+      }
+    } catch {
+      return "";
+    }
+
+    return "";
   }
 
   async function loadAdminProfile() {
     try {
       setLoading(true);
       saveAdminConnection();
+      const token = await resolveDiscordSessionToken();
 
-      const result = await adminRequest<{ user: AdminUser }>("/api/me");
+      if (!token) {
+        setStatus("Login Discord first, then press Continue.");
+        return;
+      }
+
+      if (token !== adminToken) {
+        window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+        setAdminToken(token);
+      }
+
+      const authHeaders = { Authorization: `Bearer ${token}` };
+      const result = await adminRequest<{ user: AdminUser }>("/api/me", { headers: authHeaders });
       setAdminMe(result.user);
       setStatus(`Logged as ${result.user.role}`);
 
       if (result.user.role === "owner") {
-        const admins = await adminRequest<AdminStateDocument>("/api/admins");
+        const admins = await adminRequest<AdminStateDocument>("/api/admins", {
+          headers: authHeaders,
+        });
         setBackendAdmins(admins);
       }
     } catch (err) {
@@ -1047,7 +1095,6 @@ function App() {
 
     window.localStorage.removeItem(ADMIN_TOKEN_KEY);
     setAdminToken("");
-    setAdminTokenInput("");
     setAdminMe(null);
     setBackendAdmins(null);
     setPage("home");
@@ -1611,12 +1658,8 @@ function App() {
   if (!isAuthenticated) {
     return (
       <DiscordLoginScreen
-        adminApiUrl={adminApiUrl}
-        adminTokenInput={adminTokenInput}
         loading={loading}
         status={status}
-        onAdminApiUrlChange={setAdminApiUrl}
-        onAdminTokenInputChange={setAdminTokenInput}
         onCheck={loadAdminProfile}
         onLogin={openDiscordLogin}
       />
@@ -2101,7 +2144,7 @@ function App() {
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-lg font-black">Discord Admin API</div>
+                      <div className="text-lg font-black">Discord Admin</div>
                       <div className="text-sm text-white/40">Owner: 1452029134300774414</div>
                     </div>
                     <div
@@ -2117,20 +2160,6 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4">
-                    <AdminField
-                      label="Admin API URL"
-                      value={adminApiUrl}
-                      onChange={setAdminApiUrl}
-                    />
-                    <AdminField
-                      label="Paste Discord session token"
-                      value={adminTokenInput}
-                      onChange={setAdminTokenInput}
-                      multiline
-                    />
-                  </div>
-
                   {adminMe && (
                     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/60">
                       Discord: {adminMe.username || "unknown"} · {adminMe.id}
@@ -2140,7 +2169,7 @@ function App() {
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <PrimaryButton onClick={openDiscordLogin}>Login Discord</PrimaryButton>
                     <PurpleButton disabled={loading} onClick={loadAdminProfile}>
-                      Save / Check
+                      Check session
                     </PurpleButton>
                     <PrimaryButton
                       disabled={loading || !canPublishCatalog}
@@ -2537,21 +2566,13 @@ function TreeView({
 }
 
 function DiscordLoginScreen({
-  adminApiUrl,
-  adminTokenInput,
   loading,
   status,
-  onAdminApiUrlChange,
-  onAdminTokenInputChange,
   onCheck,
   onLogin,
 }: {
-  adminApiUrl: string;
-  adminTokenInput: string;
   loading: boolean;
   status: string;
-  onAdminApiUrlChange: (value: string) => void;
-  onAdminTokenInputChange: (value: string) => void;
   onCheck: () => void;
   onLogin: () => void;
 }) {
@@ -2580,16 +2601,6 @@ function DiscordLoginScreen({
               Все пользователи заходят через Discord. Если роль owner или admin, после входа
               появится кнопка Admin.
             </div>
-          </div>
-
-          <div className="grid gap-4">
-            <AdminField label="Admin API URL" value={adminApiUrl} onChange={onAdminApiUrlChange} />
-            <AdminField
-              label="Discord session token"
-              value={adminTokenInput}
-              onChange={onAdminTokenInputChange}
-              multiline
-            />
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
