@@ -582,10 +582,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.56");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.57");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.56/Hardy.MODS_0.1.56_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.57/Hardy.MODS_0.1.57_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -1984,13 +1984,13 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#050506] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_18%_38%,rgba(255,255,255,.10),transparent_26%),radial-gradient(circle_at_82%_20%,rgba(255,255,255,.08),transparent_24%)]" />
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:76px_76px] opacity-35" />
-      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-white/10" />
-      <div className="pointer-events-none fixed right-24 top-24 h-40 w-40 rotate-45 border border-white/10" />
+    <div className="min-h-screen overflow-hidden bg-[#09090b] text-white">
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_16%_36%,rgba(255,255,255,.22),transparent_25%),radial-gradient(circle_at_78%_18%,rgba(255,255,255,.16),transparent_23%),linear-gradient(135deg,#151517_0%,#050506_46%,#1b1b1f_100%)]" />
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:76px_76px] opacity-45" />
+      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-white/18 shadow-[0_0_60px_rgba(255,255,255,.10)]" />
+      <div className="pointer-events-none fixed right-24 top-24 h-40 w-40 rotate-45 border border-white/18 shadow-[0_0_50px_rgba(255,255,255,.10)]" />
 
-      <header className="relative z-20 h-[88px] border-b border-white/10 bg-black/35 backdrop-blur-2xl">
+      <header className="relative z-20 h-[88px] border-b border-white/15 bg-black/45 shadow-[0_18px_70px_rgba(0,0,0,.38)] backdrop-blur-2xl">
         <div className="mx-auto grid h-full max-w-[1600px] grid-cols-[160px_1fr_250px] items-center gap-6 px-7">
           <button
             onClick={() => {
@@ -2131,13 +2131,6 @@ function App() {
                   className="h-16 min-w-[210px] rounded-2xl bg-white px-8 text-xl font-black text-black shadow-[0_0_34px_rgba(255,255,255,.30)] transition hover:scale-[1.03]"
                 >
                   Каталог модов
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage("rpfExplorer")}
-                  className="h-16 min-w-[210px] rounded-2xl border border-white/20 bg-white/[.06] px-8 text-xl font-black text-white backdrop-blur-xl transition hover:scale-[1.03] hover:bg-white/[.11]"
-                >
-                  RPF Tools
                 </button>
               </div>
             </div>
@@ -3121,11 +3114,14 @@ function DiscordLoginScreen({
   onLogin: () => void;
 }) {
   return (
-    <div className="min-h-screen overflow-hidden bg-[#050507] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(124,58,237,.25),transparent_30%)]" />
+    <div className="min-h-screen overflow-hidden bg-[#09090b] text-white">
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_22%_36%,rgba(255,255,255,.20),transparent_26%),radial-gradient(circle_at_78%_18%,rgba(124,58,237,.24),transparent_24%),linear-gradient(135deg,#17171a_0%,#050506_46%,#1f1f23_100%)]" />
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:76px_76px] opacity-40" />
+      <div className="pointer-events-none fixed -left-12 top-36 h-64 w-64 rotate-12 border border-white/16 shadow-[0_0_60px_rgba(255,255,255,.10)]" />
+      <div className="pointer-events-none fixed right-20 top-24 h-44 w-44 rotate-45 border border-white/16 shadow-[0_0_55px_rgba(168,85,247,.14)]" />
 
-      <main className="relative z-10 grid min-h-screen place-items-center px-8 py-12">
-        <div className="w-full max-w-[680px] rounded-[36px] border border-white/10 bg-black/45 p-8 shadow-[0_0_70px_rgba(168,85,247,.22)] backdrop-blur-xl">
+      <main className="relative z-10 grid min-h-screen grid-cols-[minmax(430px,.82fr)_minmax(520px,1.18fr)] items-center gap-12 px-12 py-12">
+        <div className="w-full max-w-[680px] rounded-[36px] border border-white/15 bg-black/52 p-8 shadow-[0_0_80px_rgba(255,255,255,.14)] backdrop-blur-2xl">
           <div className="mb-8 flex items-center gap-4">
             <img src="/hardy-h.png" className="h-14 w-14 object-contain" />
             <div>
@@ -3138,7 +3134,7 @@ function DiscordLoginScreen({
 
           <div className="mb-8 rounded-3xl border border-white/10 bg-white/[.04] p-5">
             <div className="mb-2 flex items-center gap-3 text-lg font-black">
-              <ShieldCheck size={22} className="text-purple-300" />
+              <ShieldCheck size={22} className="text-white/85" />
               Login через Discord
             </div>
             <div className="text-sm leading-6 text-white/55">
@@ -3159,6 +3155,21 @@ function DiscordLoginScreen({
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-white/55">
             Status: {status}
+          </div>
+        </div>
+
+        <div className="relative hidden h-[720px] overflow-hidden lg:block">
+          <div className="absolute left-12 top-16 h-72 w-52 rotate-[-8deg] rounded-[28px] border border-white/15 bg-white/[.08] shadow-[0_28px_90px_rgba(0,0,0,.55),0_0_45px_rgba(255,255,255,.10)] backdrop-blur-xl" />
+          <div className="absolute right-10 top-32 h-80 w-56 rotate-[7deg] rounded-[28px] border border-white/15 bg-white/[.10] shadow-[0_28px_90px_rgba(0,0,0,.58),0_0_50px_rgba(255,255,255,.12)] backdrop-blur-xl" />
+          <div className="absolute left-36 bottom-20 h-72 w-52 rotate-[5deg] rounded-[28px] border border-white/15 bg-white/[.075] shadow-[0_28px_90px_rgba(0,0,0,.55),0_0_45px_rgba(168,85,247,.10)] backdrop-blur-xl" />
+          <div className="absolute inset-x-10 top-1/2 h-px bg-white/20 shadow-[0_0_34px_rgba(255,255,255,.35)]" />
+          <div className="absolute bottom-24 right-16 text-right">
+            <div className="text-[82px] font-black leading-none text-white drop-shadow-[0_0_28px_rgba(255,255,255,.22)]">
+              HARDY
+            </div>
+            <div className="text-[78px] font-black leading-none text-zinc-300 drop-shadow-[0_0_28px_rgba(255,255,255,.26)]">
+              MODS
+            </div>
           </div>
         </div>
       </main>

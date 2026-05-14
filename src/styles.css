@@ -216,10 +216,10 @@ div {
   inset: 8% 4% 6% 44%;
   pointer-events: none;
   background:
-    radial-gradient(circle at 64% 18%, rgba(255, 255, 255, 0.16), transparent 19%),
-    radial-gradient(circle at 42% 70%, rgba(255, 255, 255, 0.08), transparent 24%);
+    radial-gradient(circle at 64% 18%, rgba(255, 255, 255, 0.28), transparent 19%),
+    radial-gradient(circle at 42% 70%, rgba(255, 255, 255, 0.16), transparent 24%);
   filter: blur(18px);
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .hero-rail-stage {
@@ -269,10 +269,6 @@ div {
   animation: hero-rail-down 38s linear infinite;
 }
 
-.hero-rail-stage:hover .hero-rail {
-  animation-duration: 92s;
-}
-
 .hero-strip-card {
   --mx: 50%;
   --my: 50%;
@@ -287,7 +283,7 @@ div {
   transform-style: preserve-3d;
   transition:
     filter 180ms ease,
-    transform 120ms ease;
+    transform 180ms ease;
   will-change: transform;
 }
 
@@ -311,12 +307,12 @@ div {
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 26px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.025)),
-    rgba(12, 12, 14, 0.72);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.055)),
+    rgba(20, 20, 23, 0.78);
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.68),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 0 34px rgba(255, 255, 255, 0.08);
+    0 24px 80px rgba(0, 0, 0, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 46px rgba(255, 255, 255, 0.13);
   backdrop-filter: blur(18px);
   transform: translateZ(28px);
 }
@@ -325,24 +321,24 @@ div {
   height: 100%;
   width: 100%;
   object-fit: cover;
-  opacity: 0.68;
-  filter: grayscale(0.75) saturate(0.55) contrast(1.08);
+  opacity: 0.82;
+  filter: grayscale(0.45) saturate(0.92) contrast(1.14);
 }
 
 .hero-strip-card-fallback {
   height: 100%;
   width: 100%;
   background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.24), transparent 22%),
-    linear-gradient(145deg, rgba(245, 245, 245, 0.20), rgba(8, 8, 10, 0.90));
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.42), transparent 22%),
+    linear-gradient(145deg, rgba(245, 245, 245, 0.34), rgba(8, 8, 10, 0.84));
 }
 
 .hero-strip-card-shade {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent 58%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.20), transparent 28%, rgba(0, 0, 0, 0.20));
+    linear-gradient(to top, rgba(0, 0, 0, 0.86), transparent 58%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 28%, rgba(0, 0, 0, 0.12));
 }
 
 .hero-strip-card-light {

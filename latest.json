@@ -1,11 +1,11 @@
 {
-  "version": "0.1.56",
-  "notes": "Restore Discord login styling and show logout button inside the app.",
-  "pub_date": "2026-05-14T16:11:21.443Z",
+  "version": "0.1.57",
+  "notes": "Brighter app UI, matching login screen, smoother 3D mod rails, and removed RPF Tools hero button.",
+  "pub_date": "2026-05-14T19:29:22.946Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThZR05OTFg1RkJ3WE45cFJNei9sZFpEMkFOckdqTXVRMTlWQUp6bU5PbkxtSU1sb1lXQUo2ZzBCVzVqOGt5eUhYK3AwUGIyMDUvVG00TU03am91SGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzc1MDcwCWZpbGU6SGFyZHkgTU9EU18wLjEuNTZfeDY0LXNldHVwLmV4ZQp1YjUrcVVLZzBBQkVkMFNrcDJieHQvZDVEN2xSbS94MmV0VVp2eGU5dzcwQmNiNzVBTEl2ZVdKM0lEaEpoSmVQMlR6S1Y0cjNaYzZBNHFkNTZqTURDdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.56/Hardy.MODS_0.1.56_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZSt4QXlvOW84WnpYUzBINDlGL2lpWng1V0xod1A5WmdaOVFiOURDQmZsS0JnbXFCclNmQzFLZ1IzN1lERmdNSjJjckVOQ0VXNVJHU2VZOVBLWFUvNHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzg2OTUyCWZpbGU6SGFyZHkgTU9EU18wLjEuNTdfeDY0LXNldHVwLmV4ZQp5dW9seVlFVGVEK1dtT0FuTVl6N0w1STdPTlJ2YmxvR2VQMmNBWFF5RlFTdFBsek1TOGFnaFUyTk9CZzYrTkxjaWNYV2ZXYlRGVS9vQ3VhUEZXVExBQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.57/Hardy.MODS_0.1.57_x64-setup.exe"
     }
   }
 }
