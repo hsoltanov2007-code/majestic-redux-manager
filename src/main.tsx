@@ -582,10 +582,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.55");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.56");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.55/Hardy.MODS_0.1.55_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.56/Hardy.MODS_0.1.56_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -2022,11 +2022,11 @@ function App() {
 
             <button
               type="button"
-              onClick={openDiscordLogin}
+              onClick={logoutDiscord}
               className="flex h-12 items-center gap-3 rounded-2xl border border-white/15 bg-white/[.06] px-6 font-black text-white transition hover:bg-white/[.12]"
             >
-              <LogIn size={18} />
-              Войти
+              <LogOut size={18} />
+              Выйти
             </button>
           </div>
         </div>
@@ -3122,10 +3122,10 @@ function DiscordLoginScreen({
 }) {
   return (
     <div className="min-h-screen overflow-hidden bg-[#050507] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,.12),transparent_30%)]" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(124,58,237,.25),transparent_30%)]" />
 
       <main className="relative z-10 grid min-h-screen place-items-center px-8 py-12">
-        <div className="w-full max-w-[680px] rounded-[36px] border border-white/10 bg-black/45 p-8 shadow-[0_0_70px_rgba(255,255,255,.13)] backdrop-blur-xl">
+        <div className="w-full max-w-[680px] rounded-[36px] border border-white/10 bg-black/45 p-8 shadow-[0_0_70px_rgba(168,85,247,.22)] backdrop-blur-xl">
           <div className="mb-8 flex items-center gap-4">
             <img src="/hardy-h.png" className="h-14 w-14 object-contain" />
             <div>
@@ -3138,7 +3138,7 @@ function DiscordLoginScreen({
 
           <div className="mb-8 rounded-3xl border border-white/10 bg-white/[.04] p-5">
             <div className="mb-2 flex items-center gap-3 text-lg font-black">
-              <ShieldCheck size={22} className="text-white/80" />
+              <ShieldCheck size={22} className="text-purple-300" />
               Login через Discord
             </div>
             <div className="text-sm leading-6 text-white/55">

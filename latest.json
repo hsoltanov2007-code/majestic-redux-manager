@@ -1,11 +1,11 @@
 {
-  "version": "0.1.55",
-  "notes": "No-scroll home screen, monochrome neon UI, and 3D animated mod rails.",
-  "pub_date": "2026-05-14T16:03:38.340Z",
+  "version": "0.1.56",
+  "notes": "Restore Discord login styling and show logout button inside the app.",
+  "pub_date": "2026-05-14T16:11:21.443Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThFV3ZLQjJLKzh0cWxqSC9KZm9BMHd0VXNIbWpyeGRJdDBKcS9jbnhYdHRCOHA2VXBKL1N0bjBsMzBsS2RxYjZ6NlJYUTNYWEFpTW9nSWp0VlhzR3dvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzc0NjA3CWZpbGU6SGFyZHkgTU9EU18wLjEuNTVfeDY0LXNldHVwLmV4ZQpubmpQakNlUm1tZHpNRG5Xd0xvMnlyS2U5cENPTUdiVkFNMm9VYVZBamRPMFZwWmdFMXo2dzRvZlRFRUxFeVA5bjFXQXprL09SNkVvQytyVzNtUGNEZz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.55/Hardy.MODS_0.1.55_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThZR05OTFg1RkJ3WE45cFJNei9sZFpEMkFOckdqTXVRMTlWQUp6bU5PbkxtSU1sb1lXQUo2ZzBCVzVqOGt5eUhYK3AwUGIyMDUvVG00TU03am91SGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzc1MDcwCWZpbGU6SGFyZHkgTU9EU18wLjEuNTZfeDY0LXNldHVwLmV4ZQp1YjUrcVVLZzBBQkVkMFNrcDJieHQvZDVEN2xSbS94MmV0VVp2eGU5dzcwQmNiNzVBTEl2ZVdKM0lEaEpoSmVQMlR6S1Y0cjNaYzZBNHFkNTZqTURDdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.56/Hardy.MODS_0.1.56_x64-setup.exe"
     }
   }
 }
