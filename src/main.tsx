@@ -520,10 +520,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.51");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.52");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.51/Hardy.MODS_0.1.51_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.52/Hardy.MODS_0.1.52_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
