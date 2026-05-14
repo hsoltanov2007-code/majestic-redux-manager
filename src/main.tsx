@@ -51,6 +51,12 @@ type AppState = {
   installedRedux: Record<string, InstalledMod>;
 };
 
+type RpfPatch = {
+  file: string;
+  internalPath: string;
+  rpfPath: string;
+};
+
 type ModItem = {
   id: string;
   name: string;
@@ -59,6 +65,7 @@ type ModItem = {
   size: string;
   image?: string;
   downloadUrl: string;
+  rpfPatches?: RpfPatch[];
 };
 
 type Category = {
@@ -272,7 +279,28 @@ function normalizeMod(value: unknown, index: number): ModItem | null {
     size: readString(value.size, "Unknown size"),
     image: readString(value.image) || undefined,
     downloadUrl,
+    rpfPatches: normalizeRpfPatches(value.rpfPatches ?? value.rpf_patches),
   };
+}
+
+function normalizeRpfPatches(value: unknown): RpfPatch[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const patches = value
+    .map((entry): RpfPatch | null => {
+      if (!isRecord(entry)) return null;
+
+      const rpfPath = readString(entry.rpfPath ?? entry.rpf_path).trim();
+      const internalPath = readString(entry.internalPath ?? entry.internal_path).trim();
+      const file = readString(entry.file).trim();
+
+      if (!rpfPath || !internalPath || !file) return null;
+
+      return { file, internalPath, rpfPath };
+    })
+    .filter((patch): patch is RpfPatch => Boolean(patch));
+
+  return patches.length > 0 ? patches : undefined;
 }
 
 function normalizeCategories(payload: unknown): Category[] {
@@ -389,6 +417,14 @@ function createAdminMod(index = 1): ModItem {
     description: "",
     size: "0 MB",
     downloadUrl: "https://github.com/USER/REPO/releases/download/v1/mod.zip",
+  };
+}
+
+function createRpfPatch(): RpfPatch {
+  return {
+    file: "patch/file.meta",
+    internalPath: "x64/path/file.meta",
+    rpfPath: "mods/update/update.rpf",
   };
 }
 
@@ -520,10 +556,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.52");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.53");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.52/Hardy.MODS_0.1.52_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.53/Hardy.MODS_0.1.53_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -963,6 +999,74 @@ function App() {
                   ? {
                       ...mod,
                       [field]: field === "id" ? sanitizeId(value, mod.id) : value,
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function addAdminRpfPatch(categoryId: string, modId: string) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      rpfPatches: [...(mod.rpfPatches || []), createRpfPatch()],
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function updateAdminRpfPatch(
+    categoryId: string,
+    modId: string,
+    patchIndex: number,
+    field: keyof RpfPatch,
+    value: string,
+  ) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      rpfPatches: (mod.rpfPatches || []).map((patch, index) =>
+                        index === patchIndex ? { ...patch, [field]: value } : patch,
+                      ),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function removeAdminRpfPatch(categoryId: string, modId: string, patchIndex: number) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      rpfPatches: (mod.rpfPatches || []).filter((_, index) => index !== patchIndex),
                     }
                   : mod,
               ),
@@ -1572,6 +1676,7 @@ function App() {
         reduxVersion: item.version,
         downloadUrl: item.downloadUrl,
         gtaPath,
+        rpfPatches: item.rpfPatches || [],
       });
 
       setInstalledRedux(state.installedRedux || {});
@@ -2273,6 +2378,93 @@ function App() {
                             }
                             multiline
                           />
+
+                          <div className="mt-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                              <div>
+                                <div className="font-black">RPF patches</div>
+                                <div className="text-xs text-white/45">
+                                  Replace files inside .rpf after zip download
+                                </div>
+                              </div>
+                              <PrimaryButton onClick={() => addAdminRpfPatch(category.id, mod.id)}>
+                                <Plus size={18} />
+                                RPF patch
+                              </PrimaryButton>
+                            </div>
+
+                            {(mod.rpfPatches || []).length === 0 && (
+                              <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
+                                No RPF patches. This mod will copy normal files from the zip.
+                              </div>
+                            )}
+
+                            <div className="space-y-3">
+                              {(mod.rpfPatches || []).map((patch, patchIndex) => (
+                                <div
+                                  key={`${mod.id}-rpf-${patchIndex}`}
+                                  className="rounded-xl border border-white/10 bg-black/25 p-3"
+                                >
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="text-sm font-black">
+                                      Patch #{patchIndex + 1}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeAdminRpfPatch(category.id, mod.id, patchIndex)
+                                      }
+                                      className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <AdminField
+                                      label="RPF path"
+                                      value={patch.rpfPath}
+                                      onChange={(value) =>
+                                        updateAdminRpfPatch(
+                                          category.id,
+                                          mod.id,
+                                          patchIndex,
+                                          "rpfPath",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                    <AdminField
+                                      label="Internal path"
+                                      value={patch.internalPath}
+                                      onChange={(value) =>
+                                        updateAdminRpfPatch(
+                                          category.id,
+                                          mod.id,
+                                          patchIndex,
+                                          "internalPath",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                    <AdminField
+                                      label="File in zip"
+                                      value={patch.file}
+                                      onChange={(value) =>
+                                        updateAdminRpfPatch(
+                                          category.id,
+                                          mod.id,
+                                          patchIndex,
+                                          "file",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2837,6 +3029,12 @@ function ModCard({
           {item.size}
           {installed && <span className="ml-2 text-white/45">installed v{installed.version}</span>}
         </p>
+
+        {item.rpfPatches && item.rpfPatches.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-purple-500/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">
+            RPF patch install: {item.rpfPatches.length} replacements
+          </div>
+        )}
 
         <div className="mt-6 flex gap-3">
           <button

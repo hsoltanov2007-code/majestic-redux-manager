@@ -512,6 +512,18 @@ function validateCatalog(catalog) {
 
       ids.add(mod.id);
       validateHttpUrl(mod.downloadUrl, `Invalid downloadUrl for ${mod.id}`);
+
+      if (mod.rpfPatches !== undefined) {
+        if (!Array.isArray(mod.rpfPatches)) {
+          throw httpError(400, `rpfPatches for ${mod.id} must be an array`);
+        }
+
+        for (const patch of mod.rpfPatches) {
+          if (!patch?.rpfPath || !patch?.internalPath || !patch?.file) {
+            throw httpError(400, `Each RPF patch for ${mod.id} needs rpfPath, internalPath and file`);
+          }
+        }
+      }
     }
   }
 }

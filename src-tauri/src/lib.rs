@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, File},
     io::{copy, Write},
     path::{Component, Path, PathBuf},
@@ -25,6 +25,15 @@ struct ModItem {
     size: String,
     image: Option<String>,
     download_url: String,
+    rpf_patches: Option<Vec<RpfPatch>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+struct RpfPatch {
+    file: String,
+    internal_path: String,
+    rpf_path: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -336,6 +345,7 @@ async fn load_redux_list(json_url: String) -> Result<Vec<Category>, String> {
 fn copy_dir_all_with_manifest(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
+    excluded_files: &HashSet<String>,
 ) -> Result<Vec<String>, String> {
     fs::create_dir_all(&dst).map_err(|e| e.to_string())?;
 
@@ -349,11 +359,16 @@ fn copy_dir_all_with_manifest(
             .strip_prefix(src.as_ref())
             .map_err(|e| e.to_string())?;
 
+        let relative_key = normalize_relative_key(relative);
         let target_path = dst.as_ref().join(relative);
 
         if source_path.is_dir() {
             fs::create_dir_all(&target_path).map_err(|e| e.to_string())?;
         } else {
+            if excluded_files.contains(&relative_key) {
+                continue;
+            }
+
             if let Some(parent) = target_path.parent() {
                 fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
@@ -364,6 +379,14 @@ fn copy_dir_all_with_manifest(
     }
 
     Ok(installed_files)
+}
+
+fn normalize_relative_key(path: &Path) -> String {
+    path.components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+        .replace('\\', "/")
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), String> {
@@ -427,6 +450,40 @@ fn find_real_install_root(extract_path: &Path) -> PathBuf {
     extract_path.to_path_buf()
 }
 
+fn has_install_markers(path: &Path) -> bool {
+    ["mods", "update", "x64", "reshade-shaders"]
+        .iter()
+        .any(|marker| path.join(marker).exists())
+}
+
+fn patch_source_path(
+    extract_path: &Path,
+    install_root: &Path,
+    patch_file: &str,
+) -> Result<PathBuf, String> {
+    let from_extract = safe_join(extract_path, patch_file)?;
+
+    if from_extract.exists() {
+        return Ok(from_extract);
+    }
+
+    let from_install_root = safe_join(install_root, patch_file)?;
+
+    if from_install_root.exists() {
+        return Ok(from_install_root);
+    }
+
+    Err(format!("RPF patch source file not found in zip: {}", patch_file))
+}
+
+fn excluded_patch_files(install_root: &Path, patch_sources: &[PathBuf]) -> HashSet<String> {
+    patch_sources
+        .iter()
+        .filter_map(|path| path.strip_prefix(install_root).ok())
+        .map(normalize_relative_key)
+        .collect()
+}
+
 fn backup_existing_files(
     install_root: &Path,
     gta_dir: &Path,
@@ -462,6 +519,86 @@ fn backup_existing_files(
     }
 
     Ok(())
+}
+
+fn validate_relative_text_path(path: &str, label: &str) -> Result<(), String> {
+    let clean = path.trim();
+
+    if clean.is_empty() {
+        return Err(format!("{} is empty", label));
+    }
+
+    let normalized = clean.replace('\\', "/");
+
+    if normalized.starts_with('/') || normalized.contains("../") || normalized == ".." {
+        return Err(format!("Unsafe {}: {}", label, path));
+    }
+
+    Ok(())
+}
+
+fn backup_one_file(source: &Path, gta_dir: &Path, backup_dir: &Path) -> Result<(), String> {
+    let relative = source.strip_prefix(gta_dir).map_err(|e| e.to_string())?;
+    let backup_file = backup_dir.join(relative);
+
+    if backup_file.exists() {
+        return Ok(());
+    }
+
+    if let Some(parent) = backup_file.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::copy(source, backup_file).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+fn apply_rpf_patches(
+    explorer_exe: &Path,
+    extract_path: &Path,
+    install_root: &Path,
+    gta_dir: &Path,
+    backup_dir: &Path,
+    patches: &[RpfPatch],
+) -> Result<Vec<String>, String> {
+    let mut patched_rpfs = vec![];
+    let mut seen_rpfs = HashSet::new();
+
+    for patch in patches {
+        validate_relative_text_path(&patch.rpf_path, "rpfPath")?;
+        validate_relative_text_path(&patch.internal_path, "internalPath")?;
+        validate_relative_text_path(&patch.file, "file")?;
+
+        let rpf_path = safe_join(gta_dir, &patch.rpf_path)?;
+        let source_path = patch_source_path(extract_path, install_root, &patch.file)?;
+
+        if !rpf_path.exists() {
+            return Err(format!("RPF file not found: {}", patch.rpf_path));
+        }
+
+        backup_one_file(&rpf_path, gta_dir, backup_dir)?;
+
+        let output = Command::new(explorer_exe)
+            .arg("replace")
+            .arg(&rpf_path)
+            .arg(&patch.internal_path)
+            .arg(&source_path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
+
+        if seen_rpfs.insert(patch.rpf_path.clone()) {
+            patched_rpfs.push(patch.rpf_path.clone());
+        }
+    }
+
+    Ok(patched_rpfs)
 }
 
 fn is_mod_really_installed(gta_path: &Path, files: &[String]) -> bool {
@@ -533,6 +670,8 @@ fn install_zip_blocking(
     redux_version: String,
     gta_path: String,
     zip_path: PathBuf,
+    rpf_patches: Vec<RpfPatch>,
+    explorer_exe: PathBuf,
 ) -> Result<AppState, String> {
     let gta_dir = validate_gta_path(&gta_path)?;
 
@@ -556,12 +695,35 @@ fn install_zip_blocking(
     archive.extract(&extract_path).map_err(|e| e.to_string())?;
 
     let install_root = find_real_install_root(&extract_path);
+    let patch_sources = rpf_patches
+        .iter()
+        .map(|patch| patch_source_path(&extract_path, &install_root, &patch.file))
+        .collect::<Result<Vec<_>, _>>()?;
+    let excluded_files = excluded_patch_files(&install_root, &patch_sources);
 
-    backup_existing_files(&install_root, &gta_dir, &backup_dir)?;
+    let mut installed_files = vec![];
 
-    let installed_files = copy_dir_all_with_manifest(&install_root, &gta_dir)?;
+    if rpf_patches.is_empty() || has_install_markers(&install_root) {
+        backup_existing_files(&install_root, &gta_dir, &backup_dir)?;
+        installed_files = copy_dir_all_with_manifest(&install_root, &gta_dir, &excluded_files)?;
+    }
 
-    if installed_files.is_empty() {
+    let patched_rpfs = apply_rpf_patches(
+        &explorer_exe,
+        &extract_path,
+        &install_root,
+        &gta_dir,
+        &backup_dir,
+        &rpf_patches,
+    )?;
+
+    for rpf_path in patched_rpfs {
+        if !installed_files.contains(&rpf_path) {
+            installed_files.push(rpf_path);
+        }
+    }
+
+    if installed_files.is_empty() && rpf_patches.is_empty() {
         return Err("Файлы не установились".to_string());
     }
 
@@ -596,6 +758,7 @@ async fn install_redux(
     redux_version: String,
     download_url: String,
     gta_path: String,
+    rpf_patches: Vec<RpfPatch>,
 ) -> Result<AppState, String> {
     emit_progress(&app, 5, "Preparing");
 
@@ -627,8 +790,17 @@ async fn install_redux(
 
     emit_progress(&app, 75, "Installing");
 
+    let explorer_exe = rpf_explorer_exe(&app)?;
+
     let state = tauri::async_runtime::spawn_blocking(move || {
-        install_zip_blocking(redux_id, redux_version, gta_path, zip_path)
+        install_zip_blocking(
+            redux_id,
+            redux_version,
+            gta_path,
+            zip_path,
+            rpf_patches,
+            explorer_exe,
+        )
     })
     .await
     .map_err(|e| e.to_string())??;
