@@ -1225,6 +1225,33 @@ function App() {
     }
   }
 
+  async function checkGithubToken() {
+    try {
+      setLoading(true);
+      const result = await adminRequest<{
+        branch: string;
+        error?: string;
+        ok: boolean;
+        permissions?: Record<string, boolean> | null;
+        repo: string;
+        repoStatus?: number;
+        tokenConfigured: boolean;
+        writePath?: string;
+      }>("/api/github-token-check", { method: "POST" });
+
+      if (result.ok) {
+        setStatus(`GitHub token OK: ${result.repo} ${result.writePath}`);
+        return;
+      }
+
+      setStatus(`GitHub token check failed: ${result.error || "unknown error"}`);
+    } catch (err) {
+      setStatus("GitHub token check failed: " + String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function addBackendAdmin() {
     try {
       setLoading(true);
@@ -2262,6 +2289,9 @@ function App() {
                     >
                       Publish latest.json
                     </PurpleButton>
+                    <PrimaryButton disabled={loading || adminMe?.role !== "owner"} onClick={checkGithubToken}>
+                      Check GitHub token
+                    </PrimaryButton>
                   </div>
                 </div>
 

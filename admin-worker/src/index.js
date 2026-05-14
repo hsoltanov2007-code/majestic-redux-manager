@@ -45,6 +45,11 @@ export default {
         return json(request, env, await getAdminState(env));
       }
 
+      if (route === "POST /api/github-token-check") {
+        await requireRole(request, env, "owner");
+        return json(request, env, await checkGithubToken(env));
+      }
+
       if (route === "POST /api/admins") {
         const user = await requireRole(request, env, "owner");
         const body = await readJson(request);
@@ -375,6 +380,62 @@ async function removeAdmin(env, discordId) {
   );
 
   return state;
+}
+
+async function checkGithubToken(env) {
+  const repo = env.DATA_REPO;
+  const path = "admin/token-check.json";
+  const result = {
+    branch: env.GITHUB_BRANCH || "main",
+    repo,
+    tokenConfigured: Boolean(String(env.GITHUB_TOKEN || "").trim()),
+  };
+
+  if (!result.tokenConfigured) {
+    return { ...result, ok: false, error: "GITHUB_TOKEN is empty in Worker runtime" };
+  }
+
+  const repoResponse = await github(env, `/repos/${repo}`);
+  const repoText = await repoResponse.text();
+
+  result.repoStatus = repoResponse.status;
+
+  if (!repoResponse.ok) {
+    return {
+      ...result,
+      ok: false,
+      error: `GitHub repo read failed: ${repoText}`,
+    };
+  }
+
+  try {
+    const repoData = JSON.parse(repoText);
+    result.permissions = repoData.permissions || null;
+  } catch {
+    result.permissions = null;
+  }
+
+  try {
+    await writeJsonFile(
+      env,
+      repo,
+      path,
+      {
+        checkedAt: new Date().toISOString(),
+        ok: true,
+        service: "majestic-redux-manager",
+      },
+      "Check GitHub token write access",
+    );
+
+    return { ...result, ok: true, writePath: path };
+  } catch (error) {
+    return {
+      ...result,
+      ok: false,
+      error: error.message || String(error),
+    };
+  }
 }
 
 function normalizeCatalogDocument(value) {
