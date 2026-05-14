@@ -206,8 +206,84 @@ div {
   pointer-events: none !important;
 }
 
+.discord-login-shell {
+  --login-motion-duration: 12s;
+  --login-shake: 0px;
+  --login-shake-neg: 0px;
+}
+
+.login-card-stage {
+  perspective: 1400px;
+  transform-style: preserve-3d;
+  contain: layout paint style;
+}
+
+.login-float-card {
+  --login-card-rotate: 0deg;
+  --login-card-delay: 0s;
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.045)),
+    rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 32px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  animation: login-card-motion var(--login-motion-duration) ease-in-out infinite both;
+  animation-delay: var(--login-card-delay);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.login-float-card--one {
+  left: 3rem;
+  top: 4rem;
+  height: 18rem;
+  width: 13rem;
+  --login-card-rotate: -8deg;
+  --login-card-delay: -1.1s;
+}
+
+.login-float-card--two {
+  right: 2.5rem;
+  top: 8rem;
+  height: 20rem;
+  width: 14rem;
+  --login-card-rotate: 7deg;
+  --login-card-delay: -3.2s;
+}
+
+.login-float-card--three {
+  bottom: 5rem;
+  left: 9rem;
+  height: 18rem;
+  width: 13rem;
+  --login-card-rotate: 5deg;
+  --login-card-delay: -5.4s;
+}
+
+.login-float-card--soft {
+  filter: blur(0.45px) brightness(0.94);
+  opacity: 0.82;
+}
+
+.login-float-card--depth {
+  filter: blur(1px) brightness(0.84);
+  opacity: 0.68;
+}
+
 .home-stage {
   isolation: isolate;
+  --hero-proximity: 0;
+  --hero-rail-up-duration: 30s;
+  --hero-rail-down-duration: 34s;
+  --hero-spin-duration: 12s;
+  --hero-shake: 0px;
+  --hero-shake-neg: 0px;
 }
 
 .home-stage::before {
@@ -254,19 +330,21 @@ div {
   display: flex;
   height: max-content;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
   transform-style: preserve-3d;
   will-change: transform;
+  backface-visibility: hidden;
+  contain: layout paint style;
 }
 
 .hero-rail-up {
   left: 16%;
-  animation: hero-rail-up 34s linear infinite;
+  animation: hero-rail-up var(--hero-rail-up-duration) linear infinite;
 }
 
 .hero-rail-down {
   right: 6%;
-  animation: hero-rail-down 38s linear infinite;
+  animation: hero-rail-down var(--hero-rail-down-duration) linear infinite;
 }
 
 .hero-strip-card {
@@ -279,12 +357,19 @@ div {
   width: clamp(174px, 15vw, 235px);
   height: clamp(240px, 21vw, 318px);
   flex: 0 0 auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   transform: perspective(1100px) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
   transform-style: preserve-3d;
   transition:
     filter 180ms ease,
     transform 180ms ease;
   will-change: transform;
+  backface-visibility: hidden;
+  contain: layout paint style;
 }
 
 .hero-strip-card:nth-child(2n) {
@@ -300,6 +385,33 @@ div {
   filter: brightness(1.18) contrast(1.08);
 }
 
+.hero-strip-card-motion {
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: hero-card-motion var(--hero-spin-duration) ease-in-out infinite both;
+  animation-delay: var(--hero-card-delay, 0s);
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.hero-strip-card--soft-blur .hero-strip-card-motion {
+  filter: blur(0.45px) brightness(0.95) saturate(0.92);
+  opacity: 0.82;
+}
+
+.hero-strip-card--depth-blur .hero-strip-card-motion {
+  filter: blur(1.15px) brightness(0.82) saturate(0.82);
+  opacity: 0.66;
+}
+
+.hero-strip-card:hover .hero-strip-card-motion {
+  filter: none;
+  opacity: 1;
+}
+
 .hero-strip-card-inner {
   position: relative;
   height: 100%;
@@ -310,11 +422,13 @@ div {
     linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.055)),
     rgba(20, 20, 23, 0.78);
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.58),
+    0 18px 54px rgba(0, 0, 0, 0.52),
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 0 46px rgba(255, 255, 255, 0.13);
-  backdrop-filter: blur(18px);
+    0 0 30px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   transform: translateZ(28px);
+  backface-visibility: hidden;
 }
 
 .hero-strip-card-image {
@@ -360,6 +474,55 @@ div {
   opacity: 1;
 }
 
+@keyframes login-card-motion {
+  0% {
+    transform: translate3d(var(--login-shake-neg), 0, 0)
+      rotate(calc(var(--login-card-rotate) - 2deg));
+  }
+
+  28% {
+    transform: translate3d(var(--login-shake), var(--login-shake-neg), 16px)
+      rotate(calc(var(--login-card-rotate) + 2.6deg));
+  }
+
+  56% {
+    transform: translate3d(var(--login-shake-neg), var(--login-shake), 0)
+      rotate(calc(var(--login-card-rotate) + 1.4deg));
+  }
+
+  78% {
+    transform: translate3d(var(--login-shake), 0, 10px)
+      rotate(calc(var(--login-card-rotate) - 1.8deg));
+  }
+
+  100% {
+    transform: translate3d(var(--login-shake-neg), 0, 0)
+      rotate(calc(var(--login-card-rotate) - 2deg));
+  }
+}
+
+@keyframes hero-card-motion {
+  0% {
+    transform: translate3d(var(--hero-shake-neg), 0, 0) rotateZ(-2.4deg);
+  }
+
+  24% {
+    transform: translate3d(var(--hero-shake), var(--hero-shake-neg), 0) rotateZ(1.9deg);
+  }
+
+  50% {
+    transform: translate3d(var(--hero-shake-neg), var(--hero-shake), 0) rotateZ(2.8deg);
+  }
+
+  76% {
+    transform: translate3d(var(--hero-shake), 0, 0) rotateZ(-1.6deg);
+  }
+
+  100% {
+    transform: translate3d(var(--hero-shake-neg), 0, 0) rotateZ(-2.4deg);
+  }
+}
+
 @keyframes hero-rail-up {
   from {
     transform: translate3d(0, 0, 0) rotateX(8deg) rotateZ(-2deg);
@@ -375,5 +538,14 @@ div {
   }
   to {
     transform: translate3d(0, 0, 0) rotateX(8deg) rotateZ(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-float-card,
+  .hero-rail,
+  .hero-strip-card-motion {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
 }

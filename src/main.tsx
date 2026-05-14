@@ -3,6 +3,7 @@ import React, {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import ReactDOM from "react-dom/client";
@@ -179,6 +180,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
 }
 
 function bytesToHex(bytes: Uint8Array) {
@@ -582,10 +587,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.57");
+  const [releaseVersion, setReleaseVersion] = useState("0.1.58");
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.57/Hardy.MODS_0.1.57_x64-setup.exe",
+    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.58/Hardy.MODS_0.1.58_x64-setup.exe",
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -617,6 +622,8 @@ function App() {
 
   const [tauriUpdate, setTauriUpdate] = useState<Update | null>(null);
   const isAuthenticated = Boolean(adminMe);
+  const heroMotionFrame = useRef<number | null>(null);
+  const heroMotionPointer = useRef<{ root: HTMLElement; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -827,7 +834,7 @@ function App() {
             },
           ];
 
-    return source.slice(0, 8);
+    return source.slice(0, 6);
   }, [featuredMods]);
 
   const adminCatalogJson = useMemo(() => catalogToJson(adminCategories), [adminCategories]);
@@ -1208,6 +1215,55 @@ function App() {
     setFilterMode("all");
     setPage("category");
     setStatus(`${mod.name} ready to install`);
+  }
+
+  function moveHeroMotion(event: React.PointerEvent<HTMLElement>) {
+    heroMotionPointer.current = {
+      root: event.currentTarget,
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    if (heroMotionFrame.current !== null) return;
+
+    heroMotionFrame.current = window.requestAnimationFrame(() => {
+      heroMotionFrame.current = null;
+      const pointer = heroMotionPointer.current;
+
+      if (!pointer) return;
+
+      const rail = pointer.root.querySelector<HTMLElement>(".hero-rail-stage");
+      const rect = (rail ?? pointer.root).getBoundingClientRect();
+      const outsideX = Math.max(rect.left - pointer.x, 0, pointer.x - rect.right);
+      const outsideY = Math.max(rect.top - pointer.y, 0, pointer.y - rect.bottom);
+      const distance = Math.hypot(outsideX, outsideY);
+      const proximity = clamp01(1 - distance / 420);
+      const easedProximity = proximity * proximity * (3 - 2 * proximity);
+
+      pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
+      pointer.root.style.setProperty("--hero-rail-up-duration", `${30 + easedProximity * 24}s`);
+      pointer.root.style.setProperty("--hero-rail-down-duration", `${34 + easedProximity * 26}s`);
+      pointer.root.style.setProperty("--hero-spin-duration", `${12 + easedProximity * 18}s`);
+      const shake = easedProximity * 2.1;
+
+      pointer.root.style.setProperty("--hero-shake", `${shake}px`);
+      pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
+    });
+  }
+
+  function resetHeroMotion(event: React.PointerEvent<HTMLElement>) {
+    if (heroMotionFrame.current !== null) {
+      window.cancelAnimationFrame(heroMotionFrame.current);
+      heroMotionFrame.current = null;
+    }
+
+    heroMotionPointer.current = null;
+    event.currentTarget.style.setProperty("--hero-proximity", "0");
+    event.currentTarget.style.setProperty("--hero-rail-up-duration", "30s");
+    event.currentTarget.style.setProperty("--hero-rail-down-duration", "34s");
+    event.currentTarget.style.setProperty("--hero-spin-duration", "12s");
+    event.currentTarget.style.setProperty("--hero-shake", "0px");
+    event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
   }
 
   function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
@@ -2102,7 +2158,11 @@ function App() {
         )}
 
         {page === "home" && (
-          <section className="home-stage relative grid h-full min-h-0 grid-cols-[minmax(430px,.72fr)_minmax(640px,1.28fr)] items-center gap-8 overflow-hidden">
+          <section
+            className="home-stage relative grid h-full min-h-0 grid-cols-[minmax(430px,.72fr)_minmax(640px,1.28fr)] items-center gap-8 overflow-hidden"
+            onPointerMove={moveHeroMotion}
+            onPointerLeave={resetHeroMotion}
+          >
             <div className="relative z-10 pl-10">
               <div className="mb-7 inline-flex items-center gap-3 rounded-full border border-white/18 bg-white/[.07] px-5 py-2 text-xs font-black uppercase tracking-[.25em] text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-xl">
                 <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,.85)]" />
@@ -2144,36 +2204,51 @@ function App() {
                     key={`lane-${lane}`}
                     className={`hero-rail hero-rail-${lane === 0 ? "up" : "down"}`}
                   >
-                    {laneMods.map(({ category, mod }, index) => (
-                      <button
-                        key={`${lane}-${category.id}-${mod.id}-${index}`}
-                        type="button"
-                        onPointerMove={moveHeroCardLight}
-                        onPointerLeave={resetHeroCardLight}
-                        onClick={() => openFeaturedMod(category, mod)}
-                        className="hero-strip-card"
-                        style={{ animationDelay: `${index * -0.22}s` }}
-                      >
-                        <div className="hero-strip-card-inner">
-                          {mod.image ? (
-                            <img src={mod.image} className="hero-strip-card-image" />
-                          ) : (
-                            <div className="hero-strip-card-fallback" />
-                          )}
-                          <div className="hero-strip-card-shade" />
-                          <div className="hero-strip-card-light" />
-                          <div className="absolute bottom-4 left-4 right-4 text-left">
-                            <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
-                              <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
-                              {category.title || "Redux"}
-                            </div>
-                            <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
-                              {mod.name}
+                    {laneMods.map(({ category, mod }, index) => {
+                      const blurClass =
+                        index % 11 === 0
+                          ? "hero-strip-card--depth-blur"
+                          : index % 5 === 0
+                            ? "hero-strip-card--soft-blur"
+                            : "";
+
+                      return (
+                        <button
+                          key={`${lane}-${category.id}-${mod.id}-${index}`}
+                          type="button"
+                          onPointerMove={moveHeroCardLight}
+                          onPointerLeave={resetHeroCardLight}
+                          onClick={() => openFeaturedMod(category, mod)}
+                          className={`hero-strip-card ${blurClass}`}
+                          style={
+                            {
+                              "--hero-card-delay": `${(index + lane * 3) * -0.58}s`,
+                            } as React.CSSProperties
+                          }
+                        >
+                          <div className="hero-strip-card-motion">
+                            <div className="hero-strip-card-inner">
+                              {mod.image ? (
+                                <img src={mod.image} className="hero-strip-card-image" />
+                              ) : (
+                                <div className="hero-strip-card-fallback" />
+                              )}
+                              <div className="hero-strip-card-shade" />
+                              <div className="hero-strip-card-light" />
+                              <div className="absolute bottom-4 left-4 right-4 text-left">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
+                                  <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
+                                  {category.title || "Redux"}
+                                </div>
+                                <div className="text-xl font-black uppercase leading-tight text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
+                                  {mod.name}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -3113,6 +3188,51 @@ function DiscordLoginScreen({
   onCheck: () => void;
   onLogin: () => void;
 }) {
+  const loginMotionFrame = useRef<number | null>(null);
+  const loginMotionPointer = useRef<{ root: HTMLElement; x: number; y: number } | null>(null);
+
+  function moveLoginCards(event: React.PointerEvent<HTMLElement>) {
+    loginMotionPointer.current = {
+      root: event.currentTarget,
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    if (loginMotionFrame.current !== null) return;
+
+    loginMotionFrame.current = window.requestAnimationFrame(() => {
+      loginMotionFrame.current = null;
+      const pointer = loginMotionPointer.current;
+
+      if (!pointer) return;
+
+      const stage = pointer.root.querySelector<HTMLElement>(".login-card-stage");
+      const rect = (stage ?? pointer.root).getBoundingClientRect();
+      const outsideX = Math.max(rect.left - pointer.x, 0, pointer.x - rect.right);
+      const outsideY = Math.max(rect.top - pointer.y, 0, pointer.y - rect.bottom);
+      const distance = Math.hypot(outsideX, outsideY);
+      const proximity = clamp01(1 - distance / 420);
+      const easedProximity = proximity * proximity * (3 - 2 * proximity);
+      const shake = easedProximity * 2;
+
+      pointer.root.style.setProperty("--login-motion-duration", `${12 + easedProximity * 18}s`);
+      pointer.root.style.setProperty("--login-shake", `${shake}px`);
+      pointer.root.style.setProperty("--login-shake-neg", `${-shake}px`);
+    });
+  }
+
+  function resetLoginCards(event: React.PointerEvent<HTMLElement>) {
+    if (loginMotionFrame.current !== null) {
+      window.cancelAnimationFrame(loginMotionFrame.current);
+      loginMotionFrame.current = null;
+    }
+
+    loginMotionPointer.current = null;
+    event.currentTarget.style.setProperty("--login-motion-duration", "12s");
+    event.currentTarget.style.setProperty("--login-shake", "0px");
+    event.currentTarget.style.setProperty("--login-shake-neg", "0px");
+  }
+
   return (
     <div className="min-h-screen overflow-hidden bg-[#09090b] text-white">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_22%_36%,rgba(255,255,255,.20),transparent_26%),radial-gradient(circle_at_78%_18%,rgba(124,58,237,.24),transparent_24%),linear-gradient(135deg,#17171a_0%,#050506_46%,#1f1f23_100%)]" />
@@ -3120,7 +3240,11 @@ function DiscordLoginScreen({
       <div className="pointer-events-none fixed -left-12 top-36 h-64 w-64 rotate-12 border border-white/16 shadow-[0_0_60px_rgba(255,255,255,.10)]" />
       <div className="pointer-events-none fixed right-20 top-24 h-44 w-44 rotate-45 border border-white/16 shadow-[0_0_55px_rgba(168,85,247,.14)]" />
 
-      <main className="relative z-10 grid min-h-screen grid-cols-[minmax(430px,.82fr)_minmax(520px,1.18fr)] items-center gap-12 px-12 py-12">
+      <main
+        className="discord-login-shell relative z-10 grid min-h-screen grid-cols-[minmax(430px,.82fr)_minmax(520px,1.18fr)] items-center gap-12 px-12 py-12"
+        onPointerMove={moveLoginCards}
+        onPointerLeave={resetLoginCards}
+      >
         <div className="w-full max-w-[680px] rounded-[36px] border border-white/15 bg-black/52 p-8 shadow-[0_0_80px_rgba(255,255,255,.14)] backdrop-blur-2xl">
           <div className="mb-8 flex items-center gap-4">
             <img src="/hardy-h.png" className="h-14 w-14 object-contain" />
@@ -3158,10 +3282,10 @@ function DiscordLoginScreen({
           </div>
         </div>
 
-        <div className="relative hidden h-[720px] overflow-hidden lg:block">
-          <div className="absolute left-12 top-16 h-72 w-52 rotate-[-8deg] rounded-[28px] border border-white/15 bg-white/[.08] shadow-[0_28px_90px_rgba(0,0,0,.55),0_0_45px_rgba(255,255,255,.10)] backdrop-blur-xl" />
-          <div className="absolute right-10 top-32 h-80 w-56 rotate-[7deg] rounded-[28px] border border-white/15 bg-white/[.10] shadow-[0_28px_90px_rgba(0,0,0,.58),0_0_50px_rgba(255,255,255,.12)] backdrop-blur-xl" />
-          <div className="absolute left-36 bottom-20 h-72 w-52 rotate-[5deg] rounded-[28px] border border-white/15 bg-white/[.075] shadow-[0_28px_90px_rgba(0,0,0,.55),0_0_45px_rgba(168,85,247,.10)] backdrop-blur-xl" />
+        <div className="login-card-stage relative hidden h-[720px] overflow-hidden lg:block">
+          <div className="login-float-card login-float-card--one login-float-card--soft" />
+          <div className="login-float-card login-float-card--two" />
+          <div className="login-float-card login-float-card--three login-float-card--depth" />
           <div className="absolute inset-x-10 top-1/2 h-px bg-white/20 shadow-[0_0_34px_rgba(255,255,255,.35)]" />
           <div className="absolute bottom-24 right-16 text-right">
             <div className="text-[82px] font-black leading-none text-white drop-shadow-[0_0_28px_rgba(255,255,255,.22)]">

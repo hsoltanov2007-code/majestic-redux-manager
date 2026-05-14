@@ -1,11 +1,11 @@
 {
-  "version": "0.1.57",
-  "notes": "Brighter app UI, matching login screen, smoother 3D mod rails, and removed RPF Tools hero button.",
-  "pub_date": "2026-05-14T19:29:22.946Z",
+  "version": "0.1.58",
+  "notes": "Smoother home cards with cursor slowdown, subtle shake, and lighter blur.",
+  "pub_date": "2026-05-14T20:47:17.050Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZSt4QXlvOW84WnpYUzBINDlGL2lpWng1V0xod1A5WmdaOVFiOURDQmZsS0JnbXFCclNmQzFLZ1IzN1lERmdNSjJjckVOQ0VXNVJHU2VZOVBLWFUvNHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzg2OTUyCWZpbGU6SGFyZHkgTU9EU18wLjEuNTdfeDY0LXNldHVwLmV4ZQp5dW9seVlFVGVEK1dtT0FuTVl6N0w1STdPTlJ2YmxvR2VQMmNBWFF5RlFTdFBsek1TOGFnaFUyTk9CZzYrTkxjaWNYV2ZXYlRGVS9vQ3VhUEZXVExBQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.57/Hardy.MODS_0.1.57_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTNEWEVMMzJaVDVlekpFNjlJVXgvV3B6WWoycFhqN3hxT3JNejA0UlM4aVdiWFpUaWk4Wjd6WDZTRUJUelZDVVROeTZoSEdROVBDaENEVTd4OS93YlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4NzkxNjE3CWZpbGU6SGFyZHkgTU9EU18wLjEuNThfeDY0LXNldHVwLmV4ZQpZOXdKRlJENE1ud2dJNXVhUWp5NmhtR2JLY01lTHYyV09VYlJ4MnIzcGlyM1BGSHJmSmJ5M0NJTDd3VWczdVIwMXdGL0NQK09jZWJvQWUzamFwWHpBQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.58/Hardy.MODS_0.1.58_x64-setup.exe"
     }
   }
 }
