@@ -573,7 +573,7 @@ function App() {
         window.localStorage.setItem(ADMIN_TOKEN_KEY, connection.token);
         setAdminApiUrl(connection.apiUrl);
         setAdminToken(connection.token);
-        setPage("admin");
+        setPage("home");
         setStatus("Discord login complete. Checking session...");
         break;
       }
