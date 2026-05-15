@@ -199,7 +199,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.65";
+const APP_VERSION = "0.1.66";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -318,31 +318,44 @@ function getRpfPatchLabel(patch: RpfPatch) {
 }
 
 function BrandWordmark({ variant = "hero" }: { variant?: "hero" | "login" | "mini" }) {
-  const topLetters = ["H", "A", "R", "D", "Y"];
-  const bottomLetters = ["M", "O", "D", "S"];
+  const topLetters = [
+    { letter: "H", src: "/brand-letters/H.png" },
+    { letter: "A", src: "/brand-letters/a.png" },
+    { letter: "R", src: "/brand-letters/r.png" },
+    { letter: "D", src: "/brand-letters/D.png" },
+    { letter: "Y", src: "/brand-letters/Y.png" },
+  ];
+  const bottomLetters = [
+    { letter: "M", src: "/brand-letters/M.png" },
+    { letter: "O", src: "/brand-letters/O.png" },
+    { letter: "D", src: "/brand-letters/DD.png" },
+    { letter: "S", src: "/brand-letters/S.png" },
+  ];
 
   return (
     <div className={`brand-wordmark brand-wordmark--${variant}`} aria-label="Харди Модс">
       <div className="brand-wordmark-row brand-wordmark-row--top">
-        {topLetters.map((letter, index) => (
+        {topLetters.map(({ letter, src }, index) => (
           <span
             key={`${letter}-${index}`}
-            className={`brand-letter brand-letter--top brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
+            className={`brand-letter brand-letter--image brand-letter--top brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
             data-letter={letter}
+            style={{ "--brand-letter-delay": `${index * -0.34}s` } as CssVars}
           >
-            {letter}
+            <img src={src} alt="" draggable={false} />
           </span>
         ))}
       </div>
 
       <div className="brand-wordmark-row brand-wordmark-row--bottom">
-        {bottomLetters.map((letter, index) => (
+        {bottomLetters.map(({ letter, src }, index) => (
           <span
             key={`${letter}-${index}`}
-            className={`brand-letter brand-letter--bottom brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
+            className={`brand-letter brand-letter--image brand-letter--bottom brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
             data-letter={letter}
+            style={{ "--brand-letter-delay": `${(index + 5) * -0.34}s` } as CssVars}
           >
-            {letter}
+            <img src={src} alt="" draggable={false} />
           </span>
         ))}
       </div>
@@ -376,7 +389,7 @@ function createLoginCards(sources: LoginCardSource[] = [], count = 8): LoginCard
       accent: preset.accent,
       depth: index % 5 === 0 ? "depth" : index % 3 === 0 ? "soft" : "clear",
       height: randomBetween(11.5, 17.5),
-      hue: randomBetween(205, 320),
+      hue: randomBetween(326, 354),
       image: preset.image,
       left: slot.left + randomBetween(-3, 3),
       rotation: randomBetween(-13, 13),
@@ -2743,7 +2756,7 @@ function App() {
                   const installedCount = category.mods.filter(
                     (mod) => installedRedux[mod.id],
                   ).length;
-                  const hue = 215 + ((index * 37) % 95);
+                  const hue = 326 + ((index * 13) % 32);
 
                   return (
                     <button
