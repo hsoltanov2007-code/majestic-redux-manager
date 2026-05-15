@@ -18,6 +18,9 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import {
   ArrowLeft,
   Bell,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clipboard,
   Download,
   FileArchive,
@@ -28,6 +31,10 @@ import {
   FolderSearch,
   Gamepad2,
   Home,
+  ImageIcon,
+  Info,
+  Layers,
+  ListTree,
   LogIn,
   LogOut,
   Package,
@@ -110,7 +117,15 @@ type AdminStateDocument = {
   schemaVersion: 1;
 };
 
-type Page = "home" | "catalog" | "category" | "rpf" | "rpfExplorer" | "settings" | "admin";
+type Page =
+  | "home"
+  | "catalog"
+  | "category"
+  | "modDetail"
+  | "rpf"
+  | "rpfExplorer"
+  | "settings"
+  | "admin";
 
 type FilterMode = "all" | "installed" | "notInstalled";
 
@@ -184,7 +199,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.64";
+const APP_VERSION = "0.1.65";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -270,6 +285,36 @@ function buildLoginCardSources(categories: Category[]): LoginCardSource[] {
       };
     }),
   );
+}
+
+function getModGallery(category: Category, mod: ModItem) {
+  return Array.from(
+    new Set([mod.image, category.image].filter((src): src is string => Boolean(src))),
+  );
+}
+
+function getModContentItems(mod: ModItem) {
+  const items = [
+    `Версия v${mod.version}`,
+    mod.size ? `Размер: ${mod.size}` : "Размер указан в каталоге",
+    "Автоматическая установка в выбранную папку GTA V",
+    "Резервная копия для быстрого восстановления",
+  ];
+
+  if (mod.rpfPatches?.length) {
+    items.push(`Замены внутри RPF: ${mod.rpfPatches.length}`);
+  } else {
+    items.push("Установка файлов без ручной замены RPF");
+  }
+
+  return items;
+}
+
+function getRpfPatchLabel(patch: RpfPatch) {
+  const archive = patch.rpfPath || "архив RPF";
+  const target = patch.internalPath || "файл внутри архива";
+
+  return `${archive} -> ${target}`;
 }
 
 function BrandWordmark({ variant = "hero" }: { variant?: "hero" | "login" | "mini" }) {
@@ -781,6 +826,8 @@ function App() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedMod, setSelectedMod] = useState<ModItem | null>(null);
+  const [modGalleryIndex, setModGalleryIndex] = useState(0);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
   const [releaseVersion, setReleaseVersion] = useState(APP_VERSION);
@@ -1207,6 +1254,7 @@ function App() {
     setAuthUser(null);
     setPage("home");
     setSelectedCategory(null);
+    setSelectedMod(null);
     setStatus("Выход выполнен");
   }
 
@@ -1268,6 +1316,7 @@ function App() {
 
   function openCatalog() {
     setSelectedCategory(null);
+    setSelectedMod(null);
     setSearchText("");
     setFilterMode("all");
     setPage("catalog");
@@ -1292,6 +1341,7 @@ function App() {
     }
 
     setSelectedCategory(null);
+    setSelectedMod(null);
     setPage("admin");
   }
 
@@ -1461,6 +1511,7 @@ function App() {
   function useAdminCatalogInPreview() {
     setCategories(cloneCatalog(adminCategories));
     setSelectedCategory(null);
+    setSelectedMod(null);
     setPage("catalog");
     setStatus("Админ-каталог открыт в предпросмотре");
   }
@@ -1475,11 +1526,17 @@ function App() {
   }
 
   function openFeaturedMod(category: Category, mod: ModItem) {
+    openModDetail(category, mod);
+  }
+
+  function openModDetail(category: Category, mod: ModItem) {
     setSelectedCategory(category);
-    setSearchText(mod.name);
+    setSelectedMod(mod);
+    setModGalleryIndex(0);
+    setSearchText("");
     setFilterMode("all");
-    setPage("category");
-    setStatus(`${mod.name} готов к установке`);
+    setPage("modDetail");
+    setStatus(`${mod.name} открыт`);
   }
 
   function moveHeroMotion(event: React.PointerEvent<HTMLElement>) {
@@ -1504,15 +1561,12 @@ function App() {
       const distance = Math.hypot(outsideX, outsideY);
       const proximity = clamp01(1 - distance / 520);
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
+      const glowX = clamp01((pointer.x - rect.left) / rect.width) * 100;
+      const glowY = clamp01((pointer.y - rect.top) / rect.height) * 100;
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
-      pointer.root.style.setProperty("--hero-rail-up-duration", `${16 + easedProximity * 46}s`);
-      pointer.root.style.setProperty("--hero-rail-down-duration", `${18 + easedProximity * 50}s`);
-      pointer.root.style.setProperty("--hero-spin-duration", `${7 + easedProximity * 30}s`);
-      const shake = easedProximity * 2.4;
-
-      pointer.root.style.setProperty("--hero-shake", `${shake}px`);
-      pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
+      pointer.root.style.setProperty("--home-glow-x", `${glowX.toFixed(1)}%`);
+      pointer.root.style.setProperty("--home-glow-y", `${glowY.toFixed(1)}%`);
     });
   }
 
@@ -1524,11 +1578,8 @@ function App() {
 
     heroMotionPointer.current = null;
     event.currentTarget.style.setProperty("--hero-proximity", "0");
-    event.currentTarget.style.setProperty("--hero-rail-up-duration", "16s");
-    event.currentTarget.style.setProperty("--hero-rail-down-duration", "18s");
-    event.currentTarget.style.setProperty("--hero-spin-duration", "7s");
-    event.currentTarget.style.setProperty("--hero-shake", "0px");
-    event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
+    event.currentTarget.style.setProperty("--home-glow-x", "50%");
+    event.currentTarget.style.setProperty("--home-glow-y", "48%");
   }
 
   function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
@@ -1536,6 +1587,14 @@ function App() {
   }
 
   function resetHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
+    resetTiltedCardVars(event.currentTarget);
+  }
+
+  function moveCategoryCardLight(event: React.PointerEvent<HTMLButtonElement>) {
+    setTiltedCardVars(event.currentTarget, event.clientX, event.clientY, 0.22);
+  }
+
+  function resetCategoryCardLight(event: React.PointerEvent<HTMLButtonElement>) {
     resetTiltedCardVars(event.currentTarget);
   }
 
@@ -1708,6 +1767,7 @@ function App() {
     setBackendAdmins(null);
     setPage("home");
     setSelectedCategory(null);
+    setSelectedMod(null);
     setStatus("Выход выполнен");
   }
 
@@ -2212,6 +2272,32 @@ function App() {
 
     if (typeof file === "string") {
       setRpfExplorerPath(file);
+      setInternalPath("");
+      setReplaceFilePath("");
+      await readRpfTree(file);
+    }
+  }
+
+  async function readRpfTree(nextRpfPath: string) {
+    if (!isTauriRuntime()) {
+      setStatus("Архивы RPF доступны только в приложении Tauri");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setRpfEntries([]);
+
+      const result = await invoke<string[]>("list_rpf_file", {
+        rpfPath: nextRpfPath,
+      });
+
+      setRpfEntries(result);
+      setStatus(`RPF открыт: ${result.length} файлов`);
+    } catch (err) {
+      setStatus("Ошибка архива RPF: " + String(err));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -2221,25 +2307,7 @@ function App() {
       return;
     }
 
-    if (!isTauriRuntime()) {
-      setStatus("Архивы RPF доступны только в приложении Tauri");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const result = await invoke<string[]>("list_rpf_file", {
-        rpfPath: rpfExplorerPath,
-      });
-
-      setRpfEntries(result);
-      setStatus("RPF загружен");
-    } catch (err) {
-      setStatus("Ошибка архива RPF: " + String(err));
-    } finally {
-      setLoading(false);
-    }
+    await readRpfTree(rpfExplorerPath);
   }
 
   async function chooseReplaceFile() {
@@ -2288,6 +2356,27 @@ function App() {
   const rpfTree = useMemo(() => {
     return buildRpfTree(rpfEntries);
   }, [rpfEntries]);
+
+  const selectedModGallery = useMemo(() => {
+    if (!selectedCategory || !selectedMod) return [];
+
+    return getModGallery(selectedCategory, selectedMod);
+  }, [selectedCategory, selectedMod]);
+
+  const selectedModContent = useMemo(() => {
+    return selectedMod ? getModContentItems(selectedMod) : [];
+  }, [selectedMod]);
+
+  const selectedModInstalled = selectedMod ? installedRedux[selectedMod.id] : undefined;
+  const selectedModHasUpdate = Boolean(
+    selectedModInstalled && selectedMod && selectedModInstalled.version !== selectedMod.version,
+  );
+  const selectedModInstallDisabled =
+    loading || (Boolean(selectedModInstalled) && !selectedModHasUpdate);
+  const selectedModImage =
+    selectedModGallery.length > 0
+      ? selectedModGallery[modGalleryIndex % selectedModGallery.length]
+      : undefined;
   const canOpenAdmin = canUseAdmin(adminMe);
   const canPublishCatalog = canOpenAdmin;
   const canPublishLatest = adminMe?.role === "owner";
@@ -2317,20 +2406,29 @@ function App() {
             onClick={() => {
               setPage("home");
               setSelectedCategory(null);
+              setSelectedMod(null);
             }}
             className="grid h-12 w-36 place-items-center rounded-2xl border border-white/15 bg-white/[.035] text-white shadow-[0_0_28px_rgba(255,255,255,.08)] transition hover:bg-white/[.08]"
           >
             <Home size={36} />
           </button>
 
-          <div className="mx-auto flex h-14 items-center gap-2 rounded-[28px] border border-white/10 bg-white/[.045] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-2xl">
-            <TopButton onClick={() => setPage("home")}>Главная</TopButton>
+          <nav className="top-nav mx-auto flex h-14 items-center gap-2">
+            <TopButton
+              onClick={() => {
+                setSelectedCategory(null);
+                setSelectedMod(null);
+                setPage("home");
+              }}
+            >
+              Главная
+            </TopButton>
             <TopButton onClick={openCatalog}>Моды</TopButton>
             <TopButton onClick={() => setPage("rpf")}>Разблокировка RPF</TopButton>
             <TopButton onClick={() => setPage("rpfExplorer")}>Архивы RPF</TopButton>
             <TopButton onClick={() => setPage("settings")}>Настройки</TopButton>
             {canOpenAdmin && <TopButton onClick={openAdmin}>Админ</TopButton>}
-          </div>
+          </nav>
 
           <div className="flex items-center justify-end gap-3">
             <CircleButton onClick={() => checkForAppUpdate(false)}>
@@ -2653,9 +2751,12 @@ function App() {
                       type="button"
                       onClick={() => {
                         setSelectedCategory(category);
+                        setSelectedMod(null);
                         setPage("category");
                         setSearchText("");
                       }}
+                      onPointerMove={moveCategoryCardLight}
+                      onPointerLeave={resetCategoryCardLight}
                       className="category-card group"
                       style={
                         {
@@ -2785,6 +2886,7 @@ function App() {
             <BackButton
               onClick={() => {
                 setSelectedCategory(null);
+                setSelectedMod(null);
                 setPage("catalog");
               }}
             />
@@ -2843,6 +2945,7 @@ function App() {
                       item={item}
                       installed={installed}
                       loading={loading}
+                      onOpen={() => openModDetail(selectedCategory, item)}
                       onInstall={() => installRedux(item)}
                       onRestore={() => restoreRedux(item)}
                     />
@@ -2853,50 +2956,246 @@ function App() {
           </section>
         )}
 
+        {page === "modDetail" && selectedCategory && selectedMod && (
+          <section className="mod-detail-section catalog-section pt-10">
+            <BackButton
+              onClick={() => {
+                setSelectedMod(null);
+                setSearchText("");
+                setPage("category");
+              }}
+            />
+
+            <div className="mod-detail-shell">
+              <div className="mod-detail-gallery">
+                <div className="mod-detail-gallery-frame">
+                  {selectedModImage ? (
+                    <img src={selectedModImage} className="mod-detail-gallery-image" />
+                  ) : (
+                    <div className="mod-detail-gallery-fallback">
+                      <ImageIcon size={56} />
+                    </div>
+                  )}
+
+                  <div className="mod-detail-gallery-shade" />
+                  <div className="mod-detail-gallery-label">
+                    <span>{getCategoryTitle(selectedCategory)}</span>
+                    <strong>{selectedMod.name}</strong>
+                  </div>
+
+                  {selectedModGallery.length > 1 && (
+                    <div className="mod-detail-gallery-controls">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setModGalleryIndex(
+                            (value) =>
+                              (value + selectedModGallery.length - 1) % selectedModGallery.length,
+                          )
+                        }
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+
+                      <span>
+                        {modGalleryIndex + 1}/{selectedModGallery.length}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setModGalleryIndex((value) => (value + 1) % selectedModGallery.length)
+                        }
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {selectedModGallery.length > 1 && (
+                  <div className="mod-detail-thumbs">
+                    {selectedModGallery.map((image, index) => (
+                      <button
+                        key={`${image}-${index}`}
+                        type="button"
+                        className={index === modGalleryIndex ? "is-active" : ""}
+                        onClick={() => setModGalleryIndex(index)}
+                      >
+                        <img src={image} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mod-detail-info">
+                <div className="catalog-kicker">Карточка мода</div>
+                <h2>{selectedMod.name}</h2>
+                <p>{selectedMod.description || "Описание мода пока не заполнено в каталоге."}</p>
+
+                <div className="mod-detail-actions">
+                  <PrimaryButton
+                    disabled={selectedModInstallDisabled}
+                    onClick={() => installRedux(selectedMod)}
+                  >
+                    <Download size={18} />
+                    {selectedModHasUpdate
+                      ? "Обновить"
+                      : selectedModInstalled
+                        ? "Установлено"
+                        : "Установить"}
+                  </PrimaryButton>
+
+                  <PurpleButton
+                    disabled={!selectedModInstalled || loading}
+                    onClick={() => restoreRedux(selectedMod)}
+                  >
+                    <RotateCcw size={18} />
+                    Восстановить
+                  </PurpleButton>
+                </div>
+
+                <div className="mod-detail-grid">
+                  <div className="mod-detail-card">
+                    <div className="mod-detail-card-title">
+                      <Layers size={20} />
+                      Что входит
+                    </div>
+                    <div className="mod-detail-list">
+                      {selectedModContent.map((item) => (
+                        <div key={item} className="mod-detail-list-row">
+                          <CheckCircle2 size={17} />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mod-detail-card">
+                    <div className="mod-detail-card-title">
+                      <ListTree size={20} />
+                      Файлы Redux
+                    </div>
+
+                    {selectedMod.rpfPatches?.length ? (
+                      <div className="mod-detail-patches">
+                        {selectedMod.rpfPatches.map((patch, index) => (
+                          <div key={`${patch.rpfPath}-${patch.internalPath}-${index}`}>
+                            <span>Замена {index + 1}</span>
+                            <strong>{getRpfPatchLabel(patch)}</strong>
+                            {patch.file && <em>{patch.file}</em>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mod-detail-muted">
+                        Для этого мода в каталоге нет ручных RPF-замен. Установка пройдет обычным
+                        способом через менеджер.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {page === "rpf" && (
           <ToolPanel
             title="Разблокировка RPF"
             icon={<FileArchive />}
             onBack={() => setPage("home")}
           >
-            <PathBox text={rpfPath || "RPF файл не выбран"} />
+            <div className="rpf-unlocker-layout">
+              <div className="rpf-help-card rpf-help-card--accent">
+                <div className="rpf-help-icon">
+                  <Info size={24} />
+                </div>
+                <h3>Как использовать</h3>
+                <p>
+                  Выбери нужный архив `.rpf`, нажми разблокировку и дождись сообщения в статусе.
+                  После этого архив можно открывать в разделе “Архивы RPF” и менять файлы внутри.
+                </p>
+              </div>
 
-            <div className="flex gap-4">
-              <PrimaryButton onClick={chooseRpfFile}>Выбрать .rpf</PrimaryButton>
+              <div className="rpf-help-card">
+                <div className="rpf-step">
+                  <span>1</span>
+                  <strong>Выбери .rpf</strong>
+                  <p>Можно брать архив из папки GTA V или из папки установленного мода.</p>
+                </div>
+                <div className="rpf-step">
+                  <span>2</span>
+                  <strong>Разблокируй</strong>
+                  <p>Менеджер снимет блокировку, чтобы архив можно было редактировать.</p>
+                </div>
+                <div className="rpf-step">
+                  <span>3</span>
+                  <strong>Открой архив</strong>
+                  <p>Перейди в “Архивы RPF”, выбери файл, дерево появится сразу.</p>
+                </div>
+              </div>
+            </div>
 
-              <PurpleButton disabled={!rpfPath} onClick={unlockRpf}>
-                Разблокировать
-              </PurpleButton>
+            <div className="rpf-action-card">
+              <PathBox text={rpfPath || "RPF файл не выбран"} />
+
+              <div className="flex flex-wrap gap-4">
+                <PrimaryButton onClick={chooseRpfFile}>Выбрать .rpf</PrimaryButton>
+
+                <PurpleButton disabled={!rpfPath} onClick={unlockRpf}>
+                  Разблокировать
+                </PurpleButton>
+              </div>
             </div>
           </ToolPanel>
         )}
 
         {page === "rpfExplorer" && (
           <ToolPanel title="Архивы RPF" icon={<FolderOpen />} onBack={() => setPage("home")}>
-            <div className="mb-6 flex gap-4">
-              <PrimaryButton onClick={chooseRpfExplorerFile}>Выбрать RPF</PrimaryButton>
+            <div className="rpf-explorer-toolbar">
+              <PrimaryButton onClick={chooseRpfExplorerFile}>Выбрать и открыть RPF</PrimaryButton>
 
               <PurpleButton disabled={!rpfExplorerPath} onClick={loadRpfTree}>
-                Открыть
+                Обновить дерево
               </PurpleButton>
+
+              <SearchBox value={rpfSearch} onChange={setRpfSearch} />
             </div>
 
             <PathBox text={rpfExplorerPath || "RPF не выбран"} />
 
-            <div className="mb-5">
-              <SearchBox value={rpfSearch} onChange={setRpfSearch} />
-            </div>
+            <div className="rpf-explorer-grid">
+              <div className="rpf-tree-panel">
+                <div className="rpf-panel-title">
+                  <ListTree size={19} />
+                  Дерево архива
+                </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div className="h-[520px] overflow-auto rounded-3xl border border-white/10 bg-black/35 p-4">
-                <TreeView
-                  nodes={filterTree(rpfTree, rpfSearch)}
-                  selectedPath={internalPath}
-                  onSelect={setInternalPath}
-                />
+                <div className="rpf-tree-scroll">
+                  {rpfEntries.length > 0 ? (
+                    <TreeView
+                      nodes={filterTree(rpfTree, rpfSearch)}
+                      selectedPath={internalPath}
+                      onSelect={setInternalPath}
+                    />
+                  ) : (
+                    <div className="rpf-empty-tree">
+                      <FolderOpen size={42} />
+                      <strong>Архив еще не открыт</strong>
+                      <span>Выбери RPF файл, и список появится здесь сразу.</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div>
+              <div className="rpf-replace-panel">
+                <div className="rpf-panel-title">
+                  <Upload size={19} />
+                  Замена файла
+                </div>
+
                 <PathBox text={internalPath || "Файл не выбран"} />
                 <PathBox text={replaceFilePath || "Новый файл не выбран"} />
 
@@ -3638,11 +3937,8 @@ function DiscordLoginScreen({
       const distance = Math.hypot(outsideX, outsideY);
       const proximity = clamp01(1 - distance / 420);
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
-      const shake = easedProximity * 2;
 
-      pointer.root.style.setProperty("--login-motion-duration", `${8 + easedProximity * 28}s`);
-      pointer.root.style.setProperty("--login-shake", `${shake}px`);
-      pointer.root.style.setProperty("--login-shake-neg", `${-shake}px`);
+      pointer.root.style.setProperty("--login-proximity", easedProximity.toFixed(3));
     });
   }
 
@@ -3661,6 +3957,7 @@ function DiscordLoginScreen({
     }
 
     loginMotionPointer.current = null;
+    event.currentTarget.style.setProperty("--login-proximity", "0");
     event.currentTarget.style.setProperty("--login-motion-duration", "8s");
     event.currentTarget.style.setProperty("--login-shake", "0px");
     event.currentTarget.style.setProperty("--login-shake-neg", "0px");
@@ -3789,12 +4086,14 @@ function ModCard({
   item,
   installed,
   loading,
+  onOpen,
   onInstall,
   onRestore,
 }: {
   item: ModItem;
   installed?: InstalledMod;
   loading: boolean;
+  onOpen: () => void;
   onInstall: () => void;
   onRestore: () => void;
 }) {
@@ -3803,7 +4102,7 @@ function ModCard({
 
   return (
     <div className="mod-card group">
-      <div className="mod-card-media">
+      <button type="button" onClick={onOpen} className="mod-card-media mod-card-media-button">
         {item.image ? (
           <img src={item.image} className="h-full w-full object-cover" />
         ) : (
@@ -3823,7 +4122,7 @@ function ModCard({
         >
           {installed ? (hasUpdate ? "Обновление" : "Установлено") : "Новое"}
         </div>
-      </div>
+      </button>
 
       <div className="p-6">
         <h3 className="text-3xl font-black">{item.name}</h3>
@@ -3842,6 +4141,10 @@ function ModCard({
         )}
 
         <div className="mt-6 flex gap-3">
+          <button type="button" onClick={onOpen} className="mod-open-button">
+            Подробнее
+          </button>
+
           <button
             type="button"
             disabled={installDisabled}
@@ -3991,7 +4294,7 @@ function ToolPanel({
 
 function PathBox({ text }: { text: ReactNode }) {
   return (
-    <div className="mb-5 break-all rounded-2xl border border-white/10 bg-black/35 p-5 text-white/65">
+    <div className="path-box mb-5 break-all rounded-2xl border border-white/10 bg-black/35 p-5 text-white/65">
       {text}
     </div>
   );
@@ -4049,7 +4352,7 @@ function PurpleButton({ children, onClick, disabled }: ButtonActionProps) {
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-2xl border border-white/15 bg-white px-6 py-4 font-black text-black shadow-[0_0_24px_rgba(255,255,255,.18)] hover:bg-zinc-200 disabled:opacity-40"
+      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white px-6 py-4 font-black text-black shadow-[0_0_24px_rgba(255,255,255,.18)] hover:bg-zinc-200 disabled:opacity-40"
     >
       {children}
     </button>

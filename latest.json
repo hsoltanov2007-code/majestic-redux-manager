@@ -1,11 +1,11 @@
 {
-  "version": "0.1.64",
-  "notes": "Hardy MODS v0.1.64: русский интерфейс, новый 3D логотип, улучшенный фон и плавные 3D-карточки.",
-  "pub_date": "2026-05-15T11:47:12.961Z",
+  "version": "0.1.65",
+  "notes": "Hardy MODS v0.1.65: стабильные 3D-карточки, подробные страницы модов, улучшенные RPF-инструменты и обновленный логотип.",
+  "pub_date": "2026-05-15T14:50:42.9157956Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTRHaFdPNFM1M2c5TG5Dd0xxdWkyc0tIUVdhdUFjdjJaZmgzV3NnaitEL09IZW9vZFM3UDhyQjQwdVZYMXphVm1RMEc2Y1A5Tjc5QlJpSnZ4WEZuU2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQ1NTYyCWZpbGU6SGFyZHkgTU9EU18wLjEuNjRfeDY0LXNldHVwLmV4ZQo4MTk0eXZSd2NYZi85UjI1b0xVdkZLK1RTOVJQdEpGN2lrdVhTdFFUSnYxU0ZKYjRiQlNUeUYxTzlGL2RoOG9IaFFyT2RlMWV2c2pHSDFuRG1FVUlCdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.64/Hardy.MODS_0.1.64_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZXdCeUpEajZpOGNDT1F3Q0FUVzBYRU9rWGgrMHBmWmlTZUZWcktmczJaZlRVbWpFaE53V0RaTHV4US9xQlVxWXBHbEtZcld2K0xDZXlEYUowWVZWSkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODU2NjIxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjVfeDY0LXNldHVwLmV4ZQpUcVZlZGdkbFF6Q0U3QUNvOHlRNUlIZXNKU0psaFJkYVJuRFd2dEpQajRObUdtdStjOG0yelhJV2dVZXZlN01wU2RvRlVtbHpHTVlIbGpVdHQ5cUREUT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.65/Hardy.MODS_0.1.65_x64-setup.exe"
     }
   }
 }
