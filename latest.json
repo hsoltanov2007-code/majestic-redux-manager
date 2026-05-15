@@ -1,11 +1,11 @@
 {
-  "version": "0.1.67",
-  "notes": "Hardy MODS v0.1.67: исправлено дергание карточек через плавный цикл движения, а логотип заменен на компактный PNG-wordmark в стиле референса.",
-  "pub_date": "2026-05-15T16:10:04.0049091Z",
+  "version": "0.1.68",
+  "notes": "Hardy MODS v0.1.68: новый светящийся курсор, новый логотип, раздельные буквы HARDY MODS, счётчик админов онлайн, статистика пользователей и поддержка с ответами из админки.",
+  "pub_date": "2026-05-15T21:11:19.7510609Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTMrV2xTdzdnaXFIaCtUL1BrRm5yUWFIOUN6dEdta1NNbVZHNStXS2RqNG14VVZxWklLNEFQaE50UTdoZWtiZHpzVXIzb1ZkS2dkZTFxak9TaTY2WHdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODYxMzgxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjdfeDY0LXNldHVwLmV4ZQpDbXZnRkF3cnVKbWdJOEZWeUNTMnlPZ29xekEyT0dybXRna2JxRHhGeVd2RExKQTRsRmNqcWl0R3V2K3hxQ1VzSWhIamRlVENPVVBvMUpsbHNncmtCdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.67/Hardy.MODS_0.1.67_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTl2YWRUNnNQTzF5MUQ0djVkNlFBdVZnYlRhS2x4RnYzck84WWtpWTBOUVdZWHFiT3ZFNE9DSTF5U3VKQ3FkTEZSTTNHNmVpY2RYcFVtTjhYb1Mwb1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODc5NDUxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjhfeDY0LXNldHVwLmV4ZQprOUZ5TVdTcCt5czNBclcwOVN1TmhGa3czRzdjNmVsYXRRVkRRaG9nT0tVMXdtNXFQaHp5WFpkSEJUMHlDRzdweFBlYVEzeEhndHlmejcza0RSUWlDZz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.68/Hardy.MODS_0.1.68_x64-setup.exe"
     }
   }
 }

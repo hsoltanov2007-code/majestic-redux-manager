@@ -30,16 +30,17 @@ import {
   FolderOpen,
   FolderSearch,
   Gamepad2,
-  Home,
   ImageIcon,
   Info,
   Layers,
   ListTree,
   LogIn,
   LogOut,
+  MessageCircle,
   Package,
   Plus,
   RefreshCw,
+  Send,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -47,6 +48,8 @@ import {
   Trash2,
   Upload,
   User,
+  Users,
+  Wifi,
 } from "lucide-react";
 
 import "./styles.css";
@@ -115,6 +118,38 @@ type AdminStateDocument = {
   admins: AdminMember[];
   ownerDiscordId: string;
   schemaVersion: 1;
+};
+
+type AppStats = {
+  adminsOnline: number;
+  adminsTotal: number;
+  totalUsers: number;
+  usersOnline: number;
+};
+
+type SupportReply = {
+  authorId: string;
+  authorName?: string;
+  createdAt: string;
+  id: string;
+  message: string;
+  role: AdminUser["role"];
+};
+
+type SupportTicket = {
+  createdAt: string;
+  id: string;
+  message: string;
+  replies: SupportReply[];
+  status: "open" | "answered";
+  updatedAt: string;
+  userId: string;
+  username?: string;
+};
+
+type SupportStateDocument = {
+  schemaVersion: 1;
+  tickets: SupportTicket[];
 };
 
 type Page =
@@ -199,7 +234,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.67";
+const APP_VERSION = "0.1.68";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -317,16 +352,139 @@ function getRpfPatchLabel(patch: RpfPatch) {
   return `${archive} -> ${target}`;
 }
 
+const BRAND_WORDMARK_ROWS = [
+  {
+    className: "brand-wordmark-row--top",
+    letters: [
+      { key: "h", label: "H", src: "/brand-letters/H.png" },
+      { key: "a", label: "A", src: "/brand-letters/a.png" },
+      { key: "r", label: "R", src: "/brand-letters/r.png" },
+      { key: "d", label: "D", src: "/brand-letters/D.png" },
+      { key: "y", label: "Y", src: "/brand-letters/Y.png" },
+    ],
+  },
+  {
+    className: "brand-wordmark-row--bottom",
+    letters: [
+      { key: "m", label: "M", src: "/brand-letters/M.png" },
+      { key: "o", label: "O", src: "/brand-letters/O.png" },
+      { key: "d2", label: "D", src: "/brand-letters/DD.png" },
+      { key: "s", label: "S", src: "/brand-letters/S.png" },
+    ],
+  },
+];
+
 function BrandWordmark({ variant = "hero" }: { variant?: "hero" | "login" | "mini" }) {
   return (
     <div className={`brand-wordmark brand-wordmark--${variant}`} aria-label="Харди Модс">
-      <img
-        src="/brand-letters/hardy-mods-wordmark.png"
-        alt=""
-        className="brand-wordmark-image"
-        draggable={false}
-      />
+      <div className="brand-wordmark-inner">
+        {BRAND_WORDMARK_ROWS.map((row) => (
+          <div key={row.className} className={`brand-wordmark-row ${row.className}`}>
+            {row.letters.map((letter, index) => (
+              <span
+                key={letter.key}
+                className={`brand-letter brand-letter--image ${
+                  row.className.includes("bottom") ? "brand-letter--bottom" : ""
+                } brand-letter--${index}`}
+                data-letter={letter.label}
+                style={{ "--brand-letter-delay": `${index * -0.38}s` } as CssVars}
+              >
+                <img src={letter.src} alt="" draggable={false} />
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function LogoMark({ className = "" }: { className?: string }) {
+  return <img src="/hardy-h.png" alt="" className={`logo-mark ${className}`} draggable={false} />;
+}
+
+function GlowCursor() {
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const dotRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const ring = ringRef.current;
+    const dot = dotRef.current;
+
+    if (!ring || !dot || window.matchMedia("(pointer: coarse)").matches) return;
+
+    let targetX = window.innerWidth / 2;
+    let targetY = window.innerHeight / 2;
+    let ringX = targetX;
+    let ringY = targetY;
+    let frame = 0;
+    let active = false;
+    let interactive = false;
+
+    document.documentElement.classList.add("has-glow-cursor");
+
+    function render() {
+      ringX += (targetX - ringX) * 0.2;
+      ringY += (targetY - ringY) * 0.2;
+
+      const ringScale = interactive ? 1.72 : active ? 0.82 : 1;
+      const dotScale = active ? 0.62 : interactive ? 0.78 : 1;
+
+      ring.style.transform = `translate3d(${(ringX - 19).toFixed(2)}px, ${(ringY - 19).toFixed(
+        2,
+      )}px, 0) scale(${ringScale})`;
+      dot.style.transform = `translate3d(${(targetX - 4).toFixed(2)}px, ${(targetY - 4).toFixed(
+        2,
+      )}px, 0) scale(${dotScale})`;
+
+      frame = window.requestAnimationFrame(render);
+    }
+
+    function setPosition(event: PointerEvent) {
+      targetX = event.clientX;
+      targetY = event.clientY;
+      interactive = Boolean(
+        (event.target as Element | null)?.closest(
+          "button,a,input,textarea,select,[role='button'],[data-cursor='button']",
+        ),
+      );
+      ring.classList.toggle("glow-cursor--interactive", interactive);
+      dot.classList.toggle("glow-cursor--interactive", interactive);
+    }
+
+    function setActive() {
+      active = true;
+      ring.classList.add("glow-cursor--active");
+      dot.classList.add("glow-cursor--active");
+    }
+
+    function resetActive() {
+      active = false;
+      ring.classList.remove("glow-cursor--active");
+      dot.classList.remove("glow-cursor--active");
+    }
+
+    frame = window.requestAnimationFrame(render);
+    window.addEventListener("pointermove", setPosition, { passive: true });
+    window.addEventListener("pointerdown", setActive, { passive: true });
+    window.addEventListener("pointerup", resetActive, { passive: true });
+    window.addEventListener("pointercancel", resetActive, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", setPosition);
+      window.removeEventListener("pointerdown", setActive);
+      window.removeEventListener("pointerup", resetActive);
+      window.removeEventListener("pointercancel", resetActive);
+      document.documentElement.classList.remove("has-glow-cursor");
+    };
+  }, []);
+
+  return (
+    <>
+      <div ref={ringRef} className="glow-cursor glow-cursor--ring" />
+      <div ref={dotRef} className="glow-cursor glow-cursor--dot" />
+    </>
   );
 }
 
@@ -820,6 +978,12 @@ function App() {
   const [adminToken, setAdminToken] = useState(initialAdminConnection.token);
   const [adminMe, setAdminMe] = useState<AdminUser | null>(null);
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
+  const [appStats, setAppStats] = useState<AppStats | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
+  const [mySupportTickets, setMySupportTickets] = useState<SupportTicket[]>([]);
+  const [adminSupportTickets, setAdminSupportTickets] = useState<SupportTicket[]>([]);
+  const [supportReplyDrafts, setSupportReplyDrafts] = useState<Record<string, string>>({});
   const [newAdminDiscordId, setNewAdminDiscordId] = useState("");
   const [newAdminLabel, setNewAdminLabel] = useState("");
 
@@ -1003,6 +1167,27 @@ function App() {
       cancelled = true;
     };
   }, [adminApiUrl, adminToken]);
+
+  useEffect(() => {
+    if (!adminMe || !adminToken) return;
+
+    let cancelled = false;
+
+    async function tickPresence() {
+      if (cancelled) return;
+      await refreshPresence();
+    }
+
+    void tickPresence();
+    const interval = window.setInterval(tickPresence, 45_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+    // refreshPresence is a local function declaration that reads the latest saved connection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminApiUrl, adminMe, adminToken]);
 
   useEffect(() => {
     if (isAuthenticated || categories.length > 0) return;
@@ -1376,6 +1561,7 @@ function App() {
     setSelectedCategory(null);
     setSelectedMod(null);
     setPage("admin");
+    void loadAdminDashboardData();
   }
 
   function syncAdminFromCatalog() {
@@ -1616,7 +1802,7 @@ function App() {
   }
 
   function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
-    setTiltedCardVars(event.currentTarget, event.clientX, event.clientY);
+    setTiltedCardVars(event.currentTarget, event.clientX, event.clientY, 0.26);
   }
 
   function resetHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
@@ -1670,6 +1856,106 @@ function App() {
     }
 
     return data as T;
+  }
+
+  async function refreshPresence() {
+    try {
+      const stats = await adminRequest<AppStats>("/api/presence", { method: "POST" });
+      setAppStats(stats);
+    } catch {
+      // Presence is a live nicety; the app should keep working if the API is not deployed yet.
+    }
+  }
+
+  async function loadAdminStats() {
+    if (!canUseAdmin(adminMe)) return;
+
+    try {
+      const stats = await adminRequest<AppStats>("/api/stats");
+      setAppStats(stats);
+    } catch (err) {
+      setStatus("Статистику админки загрузить не удалось: " + String(err));
+    }
+  }
+
+  async function loadMySupportTickets() {
+    try {
+      const support = await adminRequest<SupportStateDocument>("/api/support/mine");
+      setMySupportTickets(support.tickets);
+    } catch (err) {
+      setStatus("Поддержку загрузить не удалось: " + String(err));
+    }
+  }
+
+  async function loadAdminSupportTickets() {
+    if (!canUseAdmin(adminMe)) return;
+
+    try {
+      const support = await adminRequest<SupportStateDocument>("/api/support");
+      setAdminSupportTickets(support.tickets);
+    } catch (err) {
+      setStatus("Заявки поддержки загрузить не удалось: " + String(err));
+    }
+  }
+
+  async function loadAdminDashboardData() {
+    await Promise.all([loadAdminStats(), loadAdminSupportTickets()]);
+  }
+
+  function openSupportPanel() {
+    setSupportOpen(true);
+    void loadMySupportTickets();
+  }
+
+  async function submitSupportMessage() {
+    const message = supportMessage.trim();
+
+    if (!message) {
+      setStatus("Напиши сообщение в поддержку");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const support = await adminRequest<SupportStateDocument>("/api/support", {
+        body: JSON.stringify({ message }),
+        method: "POST",
+      });
+      setMySupportTickets(support.tickets);
+      setSupportMessage("");
+      setStatus("Сообщение отправлено в поддержку");
+    } catch (err) {
+      setStatus("Сообщение в поддержку не отправилось: " + String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function replySupportTicket(ticketId: string) {
+    const message = supportReplyDrafts[ticketId]?.trim() || "";
+
+    if (!message) {
+      setStatus("Напиши ответ пользователю");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const support = await adminRequest<SupportStateDocument>(
+        `/api/support/${encodeURIComponent(ticketId)}/reply`,
+        {
+          body: JSON.stringify({ message }),
+          method: "POST",
+        },
+      );
+      setAdminSupportTickets(support.tickets);
+      setSupportReplyDrafts((current) => ({ ...current, [ticketId]: "" }));
+      setStatus("Ответ поддержки отправлен");
+    } catch (err) {
+      setStatus("Ответ поддержки не отправился: " + String(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   function saveAdminConnection() {
@@ -1798,6 +2084,10 @@ function App() {
     setAdminToken("");
     setAdminMe(null);
     setBackendAdmins(null);
+    setAppStats(null);
+    setMySupportTickets([]);
+    setAdminSupportTickets([]);
+    setSupportOpen(false);
     setPage("home");
     setSelectedCategory(null);
     setSelectedMod(null);
@@ -2413,6 +2703,8 @@ function App() {
   const canOpenAdmin = canUseAdmin(adminMe);
   const canPublishCatalog = canOpenAdmin;
   const canPublishLatest = adminMe?.role === "owner";
+  const adminsOnline = appStats?.adminsOnline ?? 0;
+  const totalUsers = appStats?.totalUsers ?? 0;
 
   if (!isAuthenticated) {
     return (
@@ -2428,6 +2720,7 @@ function App() {
 
   return (
     <div className="app-shell min-h-screen overflow-hidden bg-[#07070a] text-white">
+      <GlowCursor />
       <div className="app-bg app-bg--base" />
       <div className="app-bg app-bg--grid" />
       <div className="app-wire app-wire--left" />
@@ -2443,7 +2736,7 @@ function App() {
             }}
             className="grid h-12 w-36 place-items-center rounded-2xl border border-white/15 bg-white/[.035] text-white shadow-[0_0_28px_rgba(255,255,255,.08)] transition hover:bg-white/[.08]"
           >
-            <Home size={36} />
+            <LogoMark className="h-10 w-10" />
           </button>
 
           <nav className="top-nav mx-auto flex h-14 items-center gap-2">
@@ -2578,6 +2871,19 @@ function App() {
                 >
                   Каталог модов
                 </button>
+              </div>
+
+              <div className="home-live-row mt-5">
+                <div className="home-live-pill">
+                  <Wifi size={17} />
+                  <span>{adminsOnline}</span>
+                  <strong>админов онлайн</strong>
+                </div>
+                <div className="home-live-pill home-live-pill--muted">
+                  <Users size={17} />
+                  <span>{totalUsers}</span>
+                  <strong>пользователей</strong>
+                </div>
               </div>
             </div>
 
@@ -3546,6 +3852,25 @@ function App() {
                   </div>
                 </div>
 
+                <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="text-lg font-black">Статистика</div>
+                    <PrimaryButton
+                      disabled={loading || !canOpenAdmin}
+                      onClick={loadAdminDashboardData}
+                    >
+                      <RefreshCw size={18} />
+                      Обновить
+                    </PrimaryButton>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <MiniStat label="Пользователи" value={String(totalUsers)} tone="success" />
+                    <MiniStat label="Онлайн" value={String(appStats?.usersOnline ?? 0)} />
+                    <MiniStat label="Админы онлайн" value={String(adminsOnline)} tone="success" />
+                    <MiniStat label="Админов" value={String(appStats?.adminsTotal ?? 0)} />
+                  </div>
+                </div>
+
                 {adminMe?.role === "owner" && (
                   <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
                     <div className="mb-4 text-lg font-black">Админы</div>
@@ -3589,6 +3914,80 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-black">Поддержка</div>
+                      <div className="text-sm text-white/40">
+                        Ответы пользователям прямо из админки
+                      </div>
+                    </div>
+                    <PrimaryButton
+                      disabled={loading || !canOpenAdmin}
+                      onClick={loadAdminSupportTickets}
+                    >
+                      <MessageCircle size={18} />
+                      Обновить
+                    </PrimaryButton>
+                  </div>
+
+                  <div className="admin-support-list">
+                    {adminSupportTickets.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 p-3 text-sm text-white/40">
+                        Заявок пока нет.
+                      </div>
+                    ) : (
+                      adminSupportTickets.map((ticket) => (
+                        <div key={ticket.id} className="admin-support-ticket">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div>
+                              <div className="font-black">{ticket.username || "Пользователь"}</div>
+                              <div className="font-mono text-xs text-white/35">{ticket.userId}</div>
+                            </div>
+                            <span className="support-status-chip">
+                              {ticket.status === "answered" ? "отвечено" : "новое"}
+                            </span>
+                          </div>
+
+                          <div className="support-bubble support-bubble--user">
+                            {ticket.message}
+                          </div>
+
+                          {ticket.replies.map((reply) => (
+                            <div key={reply.id} className="support-bubble support-bubble--admin">
+                              <div className="support-reply-author">
+                                {reply.authorName || getRoleTitle(reply.role)}
+                              </div>
+                              {reply.message}
+                            </div>
+                          ))}
+
+                          <textarea
+                            value={supportReplyDrafts[ticket.id] || ""}
+                            onChange={(event) =>
+                              setSupportReplyDrafts((current) => ({
+                                ...current,
+                                [ticket.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Ответ пользователю..."
+                            className="mt-3 h-24 w-full resize-none rounded-2xl border border-white/10 bg-black/35 p-3 text-sm outline-none"
+                          />
+                          <div className="mt-3 flex justify-end">
+                            <PurpleButton
+                              disabled={loading || !(supportReplyDrafts[ticket.id] || "").trim()}
+                              onClick={() => replySupportTicket(ticket.id)}
+                            >
+                              <Send size={18} />
+                              Ответить
+                            </PurpleButton>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
                   <div className="mb-4 text-lg font-black">Импорт каталога</div>
@@ -3793,6 +4192,18 @@ function App() {
         )}
       </main>
 
+      <SupportPanel
+        open={supportOpen}
+        currentUser={adminMe}
+        tickets={mySupportTickets}
+        message={supportMessage}
+        loading={loading}
+        onClose={() => setSupportOpen(false)}
+        onMessageChange={setSupportMessage}
+        onRefresh={loadMySupportTickets}
+        onSubmit={submitSupportMessage}
+      />
+
       <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-black/45 px-8 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between">
           <div className="flex items-center gap-3 text-sm font-bold">
@@ -3803,20 +4214,27 @@ function App() {
             <span>СТАТУС: {status}</span>
           </div>
 
-          {loading && (
-            <div className="w-[300px]">
-              <div className="mb-2 text-right text-xs text-white/45">{installStep}</div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={openSupportPanel} className="support-footer-button">
+              <MessageCircle size={18} />
+              Поддержка
+            </button>
 
-              <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full bg-purple-500 transition-all"
-                  style={{
-                    width: `${progress}%`,
-                  }}
-                />
+            {loading && (
+              <div className="w-[300px]">
+                <div className="mb-2 text-right text-xs text-white/45">{installStep}</div>
+
+                <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full bg-purple-500 transition-all"
+                    style={{
+                      width: `${progress}%`,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </footer>
     </div>
@@ -3931,6 +4349,108 @@ function TreeView({
   );
 }
 
+function formatSupportDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function SupportPanel({
+  currentUser,
+  loading,
+  message,
+  onClose,
+  onMessageChange,
+  onRefresh,
+  onSubmit,
+  open,
+  tickets,
+}: {
+  currentUser: AdminUser | null;
+  loading: boolean;
+  message: string;
+  onClose: () => void;
+  onMessageChange: (value: string) => void;
+  onRefresh: () => void;
+  onSubmit: () => void;
+  open: boolean;
+  tickets: SupportTicket[];
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="support-overlay">
+      <button type="button" className="support-backdrop" onClick={onClose} aria-label="Закрыть" />
+      <section className="support-sheet" aria-label="Поддержка">
+        <div className="support-sheet-header">
+          <div>
+            <div className="support-kicker">Hardy MODS</div>
+            <h2>Поддержка</h2>
+            <p>{currentUser?.username || "Пользователь"} · ответы придут сюда</p>
+          </div>
+          <button type="button" onClick={onClose} className="support-close-button">
+            ×
+          </button>
+        </div>
+
+        <div className="support-thread-list">
+          {tickets.length === 0 ? (
+            <div className="support-empty">
+              <MessageCircle size={34} />
+              <strong>Пока нет обращений</strong>
+              <span>Напиши вопрос, и админ сможет ответить из панели.</span>
+            </div>
+          ) : (
+            tickets.map((ticket) => (
+              <div key={ticket.id} className="support-ticket">
+                <div className="support-ticket-meta">
+                  <span>{ticket.status === "answered" ? "отвечено" : "открыто"}</span>
+                  <span>{formatSupportDate(ticket.updatedAt)}</span>
+                </div>
+                <div className="support-bubble support-bubble--user">{ticket.message}</div>
+
+                {ticket.replies.map((reply) => (
+                  <div key={reply.id} className="support-bubble support-bubble--admin">
+                    <div className="support-reply-author">
+                      {reply.authorName || getRoleTitle(reply.role)}
+                    </div>
+                    {reply.message}
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="support-compose">
+          <textarea
+            value={message}
+            onChange={(event) => onMessageChange(event.target.value)}
+            placeholder="Напиши, что случилось..."
+          />
+          <div className="flex justify-between gap-3">
+            <PrimaryButton disabled={loading} onClick={onRefresh}>
+              <RefreshCw size={18} />
+              Обновить
+            </PrimaryButton>
+            <PurpleButton disabled={loading || !message.trim()} onClick={onSubmit}>
+              <Send size={18} />
+              Отправить
+            </PurpleButton>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DiscordLoginScreen({
   cardSources,
   loading,
@@ -3998,6 +4518,7 @@ function DiscordLoginScreen({
 
   return (
     <div className="app-shell min-h-screen overflow-hidden bg-[#07070a] text-white">
+      <GlowCursor />
       <div className="app-bg app-bg--base" />
       <div className="app-bg app-bg--grid" />
       <div className="app-wire app-wire--left" />

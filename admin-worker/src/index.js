@@ -40,9 +40,49 @@ export default {
         return json(request, env, { user: await publicUser(user, env) });
       }
 
+      if (route === "POST /api/presence") {
+        const user = await requireUser(request, env);
+        return json(request, env, await updatePresence(env, user));
+      }
+
+      if (route === "GET /api/stats") {
+        await requireRole(request, env, "admin");
+        return json(request, env, await getAppStats(env));
+      }
+
       if (route === "GET /api/admins") {
         await requireRole(request, env, "owner");
         return json(request, env, await getAdminState(env));
+      }
+
+      if (route === "GET /api/support/mine") {
+        const user = await requireUser(request, env);
+        return json(request, env, await getSupportForUser(env, user.id));
+      }
+
+      if (route === "POST /api/support") {
+        const user = await requireUser(request, env);
+        const body = await readJson(request);
+        return json(request, env, await createSupportTicket(env, user, body));
+      }
+
+      if (route === "GET /api/support") {
+        await requireRole(request, env, "admin");
+        return json(request, env, await getSupportForAdmin(env));
+      }
+
+      if (request.method === "POST" && url.pathname.startsWith("/api/support/")) {
+        const user = await requireRole(request, env, "admin");
+        const ticketId = decodeURIComponent(
+          url.pathname.slice("/api/support/".length).replace(/\/reply$/, ""),
+        );
+
+        if (!url.pathname.endsWith("/reply")) {
+          return json(request, env, { error: "Not found" }, {}, 404);
+        }
+
+        const body = await readJson(request);
+        return json(request, env, await replySupportTicket(env, ticketId, body, user));
       }
 
       if (route === "POST /api/github-token-check") {
@@ -186,6 +226,17 @@ async function finishDiscordAuth(request, env) {
     },
     env,
   );
+
+  try {
+    await upsertKnownUser(env, {
+      avatar: discordUser.avatar || "",
+      id: discordUser.id,
+      role: await getRole(discordUser.id, env),
+      username: discordUser.username || "",
+    });
+  } catch {
+    // Login must not fail just because the analytics file is temporarily locked.
+  }
 
   const user = await publicUser(await verifySession(sessionToken, env), env);
   const appLoginUrl = buildAppLoginUrl(request, sessionToken);
@@ -382,6 +433,243 @@ async function removeAdmin(env, discordId) {
   return state;
 }
 
+async function getKnownUsersState(env) {
+  try {
+    const state = await readJsonFile(env, env.DATA_REPO, env.USERS_PATH || "admin/users.json");
+    return {
+      schemaVersion: 1,
+      users: Array.isArray(state.users) ? state.users : [],
+    };
+  } catch {
+    return {
+      schemaVersion: 1,
+      users: [],
+    };
+  }
+}
+
+async function upsertKnownUser(env, user) {
+  const state = await getKnownUsersState(env);
+  const now = new Date().toISOString();
+  const existing = state.users.find((entry) => entry.discordId === user.id);
+
+  if (existing) {
+    const next = {
+      ...existing,
+      avatar: user.avatar || existing.avatar || "",
+      lastSeenAt: now,
+      role: user.role || existing.role || "viewer",
+      username: user.username || existing.username || "",
+    };
+    const changed =
+      next.avatar !== existing.avatar ||
+      next.role !== existing.role ||
+      next.username !== existing.username ||
+      Date.parse(existing.lastSeenAt || "0") < Date.now() - 1000 * 60 * 60 * 6;
+
+    if (!changed) return state;
+
+    Object.assign(existing, next);
+  } else {
+    state.users.unshift({
+      avatar: user.avatar || "",
+      createdAt: now,
+      discordId: user.id,
+      lastSeenAt: now,
+      role: user.role || "viewer",
+      username: user.username || "",
+    });
+  }
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.USERS_PATH || "admin/users.json",
+    state,
+    `Track user ${user.id}`,
+  );
+
+  return state;
+}
+
+async function getPresenceState(env) {
+  try {
+    const state = await readJsonFile(
+      env,
+      env.DATA_REPO,
+      env.PRESENCE_PATH || "admin/presence.json",
+    );
+    return {
+      schemaVersion: 1,
+      users: state.users && typeof state.users === "object" ? state.users : {},
+    };
+  } catch {
+    return {
+      schemaVersion: 1,
+      users: {},
+    };
+  }
+}
+
+async function updatePresence(env, user) {
+  const role = await getRole(user.id, env);
+
+  try {
+    await upsertKnownUser(env, { ...user, role });
+  } catch {
+    // Stats can still use presence if the known-user file is busy.
+  }
+
+  const state = await getPresenceState(env);
+  state.users[user.id] = {
+    avatar: user.avatar || "",
+    lastSeenAt: new Date().toISOString(),
+    role,
+    username: user.username || "",
+  };
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.PRESENCE_PATH || "admin/presence.json",
+    state,
+    `Update presence ${user.id}`,
+  );
+
+  return getAppStats(env, state);
+}
+
+async function getAppStats(env, presenceState) {
+  const adminState = await getAdminState(env);
+  const knownUsers = await getKnownUsersState(env);
+  const presence = presenceState || (await getPresenceState(env));
+  const cutoff = Date.now() - 1000 * 60 * 2.5;
+  const onlineUsers = Object.values(presence.users || {}).filter((entry) => {
+    const seen = Date.parse(entry?.lastSeenAt || "");
+    return Number.isFinite(seen) && seen >= cutoff;
+  });
+  const adminsTotal = adminState.admins.length + 1;
+  const knownIds = new Set(knownUsers.users.map((user) => user.discordId).filter(Boolean));
+
+  knownIds.add(ownerId(env));
+  for (const admin of adminState.admins) {
+    knownIds.add(admin.discordId);
+  }
+
+  return {
+    adminsOnline: onlineUsers.filter((entry) => ["owner", "admin"].includes(entry.role)).length,
+    adminsTotal,
+    totalUsers: knownIds.size,
+    usersOnline: onlineUsers.length,
+  };
+}
+
+async function getSupportState(env) {
+  try {
+    const state = await readJsonFile(env, env.DATA_REPO, env.SUPPORT_PATH || "admin/support.json");
+    return {
+      schemaVersion: 1,
+      tickets: Array.isArray(state.tickets) ? state.tickets : [],
+    };
+  } catch {
+    return {
+      schemaVersion: 1,
+      tickets: [],
+    };
+  }
+}
+
+function sortedSupportState(state) {
+  return {
+    schemaVersion: 1,
+    tickets: [...state.tickets].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)),
+  };
+}
+
+async function getSupportForUser(env, userId) {
+  const state = await getSupportState(env);
+  return sortedSupportState({
+    ...state,
+    tickets: state.tickets.filter((ticket) => ticket.userId === userId),
+  });
+}
+
+async function getSupportForAdmin(env) {
+  return sortedSupportState(await getSupportState(env));
+}
+
+async function createSupportTicket(env, user, body) {
+  const message = String(body.message || "").trim();
+
+  if (message.length < 2) {
+    throw httpError(400, "Support message is empty");
+  }
+
+  const publicProfile = await publicUser(user, env);
+  const state = await getSupportState(env);
+  const now = new Date().toISOString();
+
+  state.tickets.unshift({
+    createdAt: now,
+    id: crypto.randomUUID(),
+    message: message.slice(0, 1800),
+    replies: [],
+    status: "open",
+    updatedAt: now,
+    userId: user.id,
+    username: publicProfile.username || "",
+  });
+  state.tickets = state.tickets.slice(0, 150);
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.SUPPORT_PATH || "admin/support.json",
+    state,
+    `Create support ticket ${user.id}`,
+  );
+
+  return getSupportForUser(env, user.id);
+}
+
+async function replySupportTicket(env, ticketId, body, admin) {
+  const message = String(body.message || "").trim();
+
+  if (message.length < 2) {
+    throw httpError(400, "Reply message is empty");
+  }
+
+  const state = await getSupportState(env);
+  const ticket = state.tickets.find((entry) => entry.id === ticketId);
+
+  if (!ticket) {
+    throw httpError(404, "Support ticket not found");
+  }
+
+  const now = new Date().toISOString();
+  ticket.replies = Array.isArray(ticket.replies) ? ticket.replies : [];
+  ticket.replies.push({
+    authorId: admin.id,
+    authorName: admin.username || "",
+    createdAt: now,
+    id: crypto.randomUUID(),
+    message: message.slice(0, 1800),
+    role: admin.role,
+  });
+  ticket.status = "answered";
+  ticket.updatedAt = now;
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.SUPPORT_PATH || "admin/support.json",
+    state,
+    `Reply support ticket ${ticketId}`,
+  );
+
+  return getSupportForAdmin(env);
+}
+
 async function checkGithubToken(env) {
   const repo = env.DATA_REPO;
   const path = "admin/token-check.json";
@@ -520,7 +808,10 @@ function validateCatalog(catalog) {
 
         for (const patch of mod.rpfPatches) {
           if (!patch?.rpfPath || !patch?.internalPath || !patch?.file) {
-            throw httpError(400, `Each RPF patch for ${mod.id} needs rpfPath, internalPath and file`);
+            throw httpError(
+              400,
+              `Each RPF patch for ${mod.id} needs rpfPath, internalPath and file`,
+            );
           }
         }
       }
