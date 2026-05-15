@@ -176,7 +176,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.61";
+const APP_VERSION = "0.1.62";
 
 const LOGIN_CARD_TITLES = [
   ["Redux", "visual pack", "RD"],
@@ -218,7 +218,7 @@ function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
-function createLoginCards(count = 6): LoginCardSpec[] {
+function createLoginCards(count = 8): LoginCardSpec[] {
   const slots = [
     { left: 8, top: 8 },
     { left: 28, top: 3 },
@@ -226,10 +226,13 @@ function createLoginCards(count = 6): LoginCardSpec[] {
     { left: 6, top: 34 },
     { left: 37, top: 30 },
     { left: 66, top: 25 },
+    { left: 24, top: 55 },
+    { left: 58, top: 50 },
   ];
+  const titles = [...LOGIN_CARD_TITLES].sort(() => Math.random() - 0.5);
 
   return Array.from({ length: count }, (_, index) => {
-    const preset = LOGIN_CARD_TITLES[index % LOGIN_CARD_TITLES.length];
+    const preset = titles[index % titles.length];
     const slot = slots[index % slots.length];
 
     return {
@@ -247,6 +250,40 @@ function createLoginCards(count = 6): LoginCardSpec[] {
       delay: randomBetween(-9, 0),
     };
   });
+}
+
+function setTiltedCardVars(card: HTMLElement, clientX: number, clientY: number, power = 1) {
+  const rect = card.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  const px = (x / rect.width - 0.5) * 2;
+  const py = (y / rect.height - 0.5) * 2;
+  const rx = py * -20 * power;
+  const ry = px * 24 * power;
+
+  card.style.setProperty("--mx", `${x}px`);
+  card.style.setProperty("--my", `${y}px`);
+  card.style.setProperty("--px", px.toFixed(3));
+  card.style.setProperty("--py", py.toFixed(3));
+  card.style.setProperty("--image-x", `${px * -18 * power}px`);
+  card.style.setProperty("--image-y", `${py * -18 * power}px`);
+  card.style.setProperty("--copy-x", `${px * 7 * power}px`);
+  card.style.setProperty("--copy-y", `${py * 5 * power}px`);
+  card.style.setProperty("--rx", `${rx}deg`);
+  card.style.setProperty("--ry", `${ry}deg`);
+}
+
+function resetTiltedCardVars(card: HTMLElement) {
+  card.style.setProperty("--rx", "0deg");
+  card.style.setProperty("--ry", "0deg");
+  card.style.setProperty("--px", "0");
+  card.style.setProperty("--py", "0");
+  card.style.setProperty("--image-x", "0px");
+  card.style.setProperty("--image-y", "0px");
+  card.style.setProperty("--copy-x", "0px");
+  card.style.setProperty("--copy-y", "0px");
+  card.style.setProperty("--mx", "50%");
+  card.style.setProperty("--my", "50%");
 }
 
 function bytesToHex(bytes: Uint8Array) {
@@ -1345,6 +1382,9 @@ function App() {
       const distance = Math.hypot(outsideX, outsideY);
       const proximity = clamp01(1 - distance / 520);
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
+      const homeRect = pointer.root.getBoundingClientRect();
+      const homePx = ((pointer.x - homeRect.left) / homeRect.width - 0.5) * 2;
+      const homePy = ((pointer.y - homeRect.top) / homeRect.height - 0.5) * 2;
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
       pointer.root.style.setProperty("--hero-rail-up-duration", `${28 + easedProximity * 34}s`);
@@ -1354,6 +1394,14 @@ function App() {
 
       pointer.root.style.setProperty("--hero-shake", `${shake}px`);
       pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
+      pointer.root.style.setProperty("--home-rx", `${homePy * -8}deg`);
+      pointer.root.style.setProperty("--home-ry", `${homePx * 10}deg`);
+      pointer.root.style.setProperty("--home-logo-x", `${homePx * 14}px`);
+      pointer.root.style.setProperty("--home-logo-y", `${homePy * 10}px`);
+      pointer.root.style.setProperty("--home-title-x", `${homePx * -8}px`);
+      pointer.root.style.setProperty("--home-title-y", `${homePy * -6}px`);
+      pointer.root.style.setProperty("--home-glow-x", `${50 + homePx * 20}%`);
+      pointer.root.style.setProperty("--home-glow-y", `${48 + homePy * 18}%`);
     });
   }
 
@@ -1370,43 +1418,22 @@ function App() {
     event.currentTarget.style.setProperty("--hero-spin-duration", "10s");
     event.currentTarget.style.setProperty("--hero-shake", "0px");
     event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
+    event.currentTarget.style.setProperty("--home-rx", "0deg");
+    event.currentTarget.style.setProperty("--home-ry", "0deg");
+    event.currentTarget.style.setProperty("--home-logo-x", "0px");
+    event.currentTarget.style.setProperty("--home-logo-y", "0px");
+    event.currentTarget.style.setProperty("--home-title-x", "0px");
+    event.currentTarget.style.setProperty("--home-title-y", "0px");
+    event.currentTarget.style.setProperty("--home-glow-x", "50%");
+    event.currentTarget.style.setProperty("--home-glow-y", "48%");
   }
 
   function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
-    const card = event.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const px = (x / rect.width - 0.5) * 2;
-    const py = (y / rect.height - 0.5) * 2;
-    const rx = py * -20;
-    const ry = px * 24;
-
-    card.style.setProperty("--mx", `${x}px`);
-    card.style.setProperty("--my", `${y}px`);
-    card.style.setProperty("--px", px.toFixed(3));
-    card.style.setProperty("--py", py.toFixed(3));
-    card.style.setProperty("--image-x", `${px * -18}px`);
-    card.style.setProperty("--image-y", `${py * -18}px`);
-    card.style.setProperty("--copy-x", `${px * 7}px`);
-    card.style.setProperty("--copy-y", `${py * 5}px`);
-    card.style.setProperty("--rx", `${rx}deg`);
-    card.style.setProperty("--ry", `${ry}deg`);
+    setTiltedCardVars(event.currentTarget, event.clientX, event.clientY);
   }
 
   function resetHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
-    const card = event.currentTarget;
-
-    card.style.setProperty("--rx", "0deg");
-    card.style.setProperty("--ry", "0deg");
-    card.style.setProperty("--px", "0");
-    card.style.setProperty("--py", "0");
-    card.style.setProperty("--image-x", "0px");
-    card.style.setProperty("--image-y", "0px");
-    card.style.setProperty("--copy-x", "0px");
-    card.style.setProperty("--copy-y", "0px");
-    card.style.setProperty("--mx", "50%");
-    card.style.setProperty("--my", "50%");
+    resetTiltedCardVars(event.currentTarget);
   }
 
   async function adminRequest<T>(
@@ -2287,22 +2314,23 @@ function App() {
             onPointerMove={moveHeroMotion}
             onPointerLeave={resetHeroMotion}
           >
-            <div className="relative z-10 pl-10">
-              <div className="mb-7 inline-flex items-center gap-3 rounded-full border border-white/18 bg-white/[.07] px-5 py-2 text-xs font-black uppercase tracking-[.25em] text-white/75 shadow-[inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-xl">
+            <div className="home-brand-panel relative z-10 pl-10">
+              <div className="home-kicker mb-7 inline-flex items-center gap-3 rounded-full px-5 py-2 text-xs font-black uppercase tracking-[.25em] text-white/75">
                 <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,.85)]" />
                 THE BEST CATALOG OF MODIFICATIONS
               </div>
 
-              <div className="relative inline-block">
+              <div className="home-logo-stack relative inline-block">
+                <div className="home-brand-aura" />
                 <img
                   src="/hardy-h.png"
-                  className="mx-auto h-[300px] w-[300px] object-contain opacity-95 drop-shadow-[0_0_50px_rgba(255,255,255,.20)]"
+                  className="home-logo mx-auto h-[300px] w-[300px] object-contain opacity-95"
                 />
-                <div className="-mt-16 text-center">
-                  <div className="text-[76px] font-black leading-none text-white drop-shadow-[0_0_22px_rgba(255,255,255,.28)]">
+                <div className="home-title -mt-16 text-center">
+                  <div className="home-title-line home-title-line--main text-[76px] font-black leading-none text-white">
                     HARDY
                   </div>
-                  <div className="text-[74px] font-black leading-none text-zinc-300 drop-shadow-[0_0_26px_rgba(255,255,255,.32)]">
+                  <div className="home-title-line home-title-line--sub text-[74px] font-black leading-none">
                     MODS
                   </div>
                 </div>
@@ -3490,6 +3518,14 @@ function DiscordLoginScreen({
     });
   }
 
+  function moveLoginFloatCard(event: React.PointerEvent<HTMLDivElement>) {
+    setTiltedCardVars(event.currentTarget, event.clientX, event.clientY, 0.92);
+  }
+
+  function resetLoginFloatCard(event: React.PointerEvent<HTMLDivElement>) {
+    resetTiltedCardVars(event.currentTarget);
+  }
+
   function resetLoginCards(event: React.PointerEvent<HTMLElement>) {
     if (loginMotionFrame.current !== null) {
       window.cancelAnimationFrame(loginMotionFrame.current);
@@ -3556,6 +3592,8 @@ function DiscordLoginScreen({
             <div
               key={card.id}
               className={`login-float-card login-float-card--${card.depth}`}
+              onPointerMove={moveLoginFloatCard}
+              onPointerLeave={resetLoginFloatCard}
               style={
                 {
                   "--login-card-delay": `${card.delay}s`,

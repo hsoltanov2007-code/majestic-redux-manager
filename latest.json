@@ -1,11 +1,11 @@
 {
-  "version": "0.1.61",
-  "notes": "Add app version to Settings and upgrade home cards with stronger 3D cursor interaction.",
-  "pub_date": "2026-05-15T09:31:03.487Z",
+  "version": "0.1.62",
+  "notes": "Add randomized 3D login cards and richer animated home hero.",
+  "pub_date": "2026-05-15T10:14:04.546Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTRVYWpONFJRWWRHNHJhOGs5SVhnNUZZQzFRclYyYlRJNDRVVGVRQkdkdXVjTkRvcG5GamUrYmZqTzAzdzdMVDVxZ2x1b3l0WWliZlVEZC8yNVY5Q2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODM3NDQ5CWZpbGU6SGFyZHkgTU9EU18wLjEuNjFfeDY0LXNldHVwLmV4ZQpITmwyNk9aTER0QmVMWWlZK05lMnRUd1F5NHlJekZ4ZndCRlpxK3dFWE1rN1duSDBKZy9IUU1vSkFPdE9yQStTNCtabnZLaWZPUWRoSTI4NjhueHVCQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.61/Hardy.MODS_0.1.61_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTg1cXJER3BucENYUVBLS2t6cEtpWDlyU0R2aDR3bUMzSnlNdEViYWIrQTVGVExBK1p1cDhnMDJYWStRT1pOcEVUamxodjBjOWxyV0VtUzVUQ3Y1dGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQwMDI2CWZpbGU6SGFyZHkgTU9EU18wLjEuNjJfeDY0LXNldHVwLmV4ZQo2TGFwUnBBSTZOa0plNlpjd3hXYWtvbGpqejU4NXZDMWpiQVBqMFZZem1uQUlHMjh1RXRNcy8zQWphU2ZsRlp6b1I2d1dsS2E4cnRwUFRXMHFDWjRBdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.62/Hardy.MODS_0.1.62_x64-setup.exe"
     }
   }
 }
