@@ -296,14 +296,12 @@ div {
 }
 
 .brand-wordmark {
-  --brand-size: clamp(7.4rem, 11.2vw, 10.8rem);
-  --brand-bottom-size: calc(var(--brand-size) * 0.82);
-  --brand-gap: calc(var(--brand-size) * -0.43);
+  width: clamp(320px, 30vw, 430px);
+  aspect-ratio: 590 / 350;
   position: relative;
-  display: inline-grid;
-  justify-items: center;
+  display: block;
   pointer-events: none;
-  transform: translateZ(110px);
+  transform: translateZ(110px) rotate(-1deg);
   transform-style: preserve-3d;
 }
 
@@ -318,6 +316,19 @@ div {
   filter: blur(24px);
   opacity: 0.82;
   transform: translateZ(-44px);
+}
+
+.brand-wordmark-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  filter:
+    drop-shadow(0 12px 0 rgba(0, 0, 0, 0.58))
+    drop-shadow(0 20px 18px rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 18px rgba(255, 211, 229, 0.2));
+  animation: brand-wordmark-breathe 6s ease-in-out infinite both;
 }
 
 .brand-wordmark-row {
@@ -483,14 +494,11 @@ div {
 }
 
 .brand-wordmark--login {
-  --brand-size: clamp(4.4rem, 7vw, 6.8rem);
-  --brand-bottom-size: calc(var(--brand-size) * 0.8);
+  width: clamp(280px, 25vw, 380px);
 }
 
 .brand-wordmark--mini {
-  --brand-size: 2.2rem;
-  --brand-bottom-size: 1.6rem;
-  --brand-gap: -1rem;
+  width: 7.4rem;
   transform: translateZ(40px);
 }
 
@@ -900,9 +908,9 @@ div {
 }
 
 .home-logo-stack {
-  width: min(430px, 90vw);
+  width: min(430px, 86vw);
   max-width: 100%;
-  margin-left: 1.25rem;
+  margin-left: 1.6rem;
   transform-style: preserve-3d;
 }
 
@@ -1047,27 +1055,14 @@ div {
 
 .hero-rail-up {
   left: clamp(46px, 12vw, 196px);
-  animation: hero-rail-up var(--hero-rail-up-duration) linear infinite;
+  animation: none;
+  transform: translate3d(-8px, 0, 0) rotateX(8deg) rotateZ(-2deg);
 }
 
 .hero-rail-down {
   right: clamp(96px, 9vw, 154px);
-  animation: hero-rail-down var(--hero-rail-down-duration) linear infinite;
-}
-
-.hero-rail-stage:hover .hero-rail-up {
-  animation-duration: 34s;
-  animation-play-state: running;
-}
-
-.hero-rail-stage:hover .hero-rail-down {
-  animation-duration: 38s;
-  animation-play-state: running;
-}
-
-.hero-rail-stage:hover .hero-strip-card-motion {
-  animation-duration: 18s;
-  animation-play-state: running;
+  animation: none;
+  transform: translate3d(10px, -33.333%, 0) rotateX(8deg) rotateZ(2deg);
 }
 
 .hero-strip-card {
@@ -2133,6 +2128,21 @@ div {
 
   70% {
     transform: translate3d(-0.018em, 0.012em, 0) rotate(-0.9deg) scale(0.995);
+  }
+}
+
+@keyframes brand-wordmark-breathe {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-0.3deg) scale(1);
+  }
+
+  42% {
+    transform: translate3d(0.8px, -1.2px, 0) rotate(0.45deg) scale(1.012);
+  }
+
+  72% {
+    transform: translate3d(-0.6px, 0.7px, 0) rotate(-0.18deg) scale(0.997);
   }
 }
 

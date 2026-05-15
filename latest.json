@@ -1,11 +1,11 @@
 {
-  "version": "0.1.66",
-  "notes": "Hardy MODS v0.1.66: логотип собран из фирменных PNG-букв, обновлена розово-бордовая тема и карточки теперь плавно замедляются при наведении.",
-  "pub_date": "2026-05-15T15:35:21.4641355Z",
+  "version": "0.1.67",
+  "notes": "Hardy MODS v0.1.67: исправлено дергание карточек через плавный цикл движения, а логотип заменен на компактный PNG-wordmark в стиле референса.",
+  "pub_date": "2026-05-15T16:10:04.0049091Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTIrTTdXSzExbGNWOTNWYjhvZGxOZ2t3eVdWamtlS3VRWlkySnNlUjdPSmNxTWNDUmxhZ2daYmVKcHNrMkZvOUY2SzJkVjN2ckpLT2Y5bWRLQ1ljcXdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODU5MzAxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjZfeDY0LXNldHVwLmV4ZQpOZ3lCQnhqOG1uS1hkaXY0NUlUcEMwZm0zK1pDblRLYm9EYmhlbE1TekY4OGZ2R2JiZHdMUjFYU3FwU0pKVVBGUHl0VjhkenlFaHM1V2h4dGJ5c2lEUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.66/Hardy.MODS_0.1.66_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTMrV2xTdzdnaXFIaCtUL1BrRm5yUWFIOUN6dEdta1NNbVZHNStXS2RqNG14VVZxWklLNEFQaE50UTdoZWtiZHpzVXIzb1ZkS2dkZTFxak9TaTY2WHdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODYxMzgxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjdfeDY0LXNldHVwLmV4ZQpDbXZnRkF3cnVKbWdJOEZWeUNTMnlPZ29xekEyT0dybXRna2JxRHhGeVd2RExKQTRsRmNqcWl0R3V2K3hxQ1VzSWhIamRlVENPVVBvMUpsbHNncmtCdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.67/Hardy.MODS_0.1.67_x64-setup.exe"
     }
   }
 }
