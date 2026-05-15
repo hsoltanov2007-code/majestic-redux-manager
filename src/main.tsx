@@ -121,6 +121,13 @@ type ProgressPayload = {
 
 type CssVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
+type LoginCardSource = {
+  title: string;
+  subtitle: string;
+  accent: string;
+  image?: string;
+};
+
 type LoginCardSpec = {
   id: string;
   title: string;
@@ -129,6 +136,7 @@ type LoginCardSpec = {
   depth: "clear" | "soft" | "depth";
   height: number;
   hue: number;
+  image?: string;
   left: number;
   rotation: number;
   top: number;
@@ -176,17 +184,17 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.62";
+const APP_VERSION = "0.1.63";
 
-const LOGIN_CARD_TITLES = [
-  ["Redux", "visual pack", "RD"],
-  ["RPF", "unlock ready", "RP"],
-  ["Neon", "city glow", "NE"],
-  ["Drift", "street setup", "DR"],
-  ["Ultra", "graphics", "UL"],
-  ["Mods", "catalog", "MO"],
-  ["Night", "preset", "NI"],
-] as const;
+const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
+  { title: "MAD REDUX v3.0", subtitle: "Redux", accent: "RD" },
+  { title: "Thugger Redux", subtitle: "Redux", accent: "RD" },
+  { title: "HardyGunPack", subtitle: "GunPack", accent: "GP" },
+  { title: "Majestic Redux", subtitle: "Redux", accent: "RD" },
+  { title: "Light Redux", subtitle: "Graphics", accent: "GX" },
+  { title: "Venom Redux", subtitle: "Redux", accent: "VX" },
+  { title: "Best Redux", subtitle: "Graphics", accent: "BR" },
+];
 
 const emptyState: AppState = {
   gtaPath: "",
@@ -218,7 +226,26 @@ function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
-function createLoginCards(count = 8): LoginCardSpec[] {
+function buildLoginCardSources(categories: Category[]): LoginCardSource[] {
+  return categories.flatMap((category) =>
+    category.mods.map((mod) => {
+      const label = category.title || "Redux";
+      const rawAccent = (label || mod.name)
+        .replace(/[^a-z0-9]+/gi, "")
+        .slice(0, 2)
+        .toUpperCase();
+
+      return {
+        title: mod.name,
+        subtitle: mod.version ? `${label} / v${mod.version}` : label,
+        accent: rawAccent || "RD",
+        image: mod.image || category.image,
+      };
+    }),
+  );
+}
+
+function createLoginCards(sources: LoginCardSource[] = [], count = 8): LoginCardSpec[] {
   const slots = [
     { left: 8, top: 8 },
     { left: 28, top: 3 },
@@ -229,20 +256,23 @@ function createLoginCards(count = 8): LoginCardSpec[] {
     { left: 24, top: 55 },
     { left: 58, top: 50 },
   ];
-  const titles = [...LOGIN_CARD_TITLES].sort(() => Math.random() - 0.5);
+  const cards = [...(sources.length > 0 ? sources : LOGIN_CARD_FALLBACKS)].sort(
+    () => Math.random() - 0.5,
+  );
 
   return Array.from({ length: count }, (_, index) => {
-    const preset = titles[index % titles.length];
+    const preset = cards[index % cards.length];
     const slot = slots[index % slots.length];
 
     return {
-      id: `${preset[0]}-${index}`,
-      title: preset[0],
-      subtitle: preset[1],
-      accent: preset[2],
+      id: `${preset.title}-${index}`,
+      title: preset.title,
+      subtitle: preset.subtitle,
+      accent: preset.accent,
       depth: index % 5 === 0 ? "depth" : index % 3 === 0 ? "soft" : "clear",
       height: randomBetween(11.5, 17.5),
       hue: randomBetween(205, 320),
+      image: preset.image,
       left: slot.left + randomBetween(-3, 3),
       rotation: randomBetween(-13, 13),
       top: slot.top + randomBetween(-3, 3),
@@ -731,6 +761,8 @@ function App() {
   const heroMotionFrame = useRef<number | null>(null);
   const heroMotionPointer = useRef<{ root: HTMLElement; x: number; y: number } | null>(null);
 
+  const loginCardSources = useMemo(() => buildLoginCardSources(categories), [categories]);
+
   useEffect(() => {
     if (!isTauriRuntime()) return;
 
@@ -831,6 +863,36 @@ function App() {
       cancelled = true;
     };
   }, [adminApiUrl, adminToken]);
+
+  useEffect(() => {
+    if (isAuthenticated || categories.length > 0) return;
+
+    let cancelled = false;
+
+    async function loadLoginCatalogPreview() {
+      const urls = [REDUX_JSON_URL, "/redux.example.json"];
+
+      for (const url of urls) {
+        try {
+          const list = await fetchCatalog(url);
+
+          if (!cancelled && list.length > 0) {
+            setCategories(list);
+          }
+
+          return;
+        } catch {
+          // Try the local fallback next so login cards are still populated offline.
+        }
+      }
+    }
+
+    void loadLoginCatalogPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categories.length, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -1382,9 +1444,6 @@ function App() {
       const distance = Math.hypot(outsideX, outsideY);
       const proximity = clamp01(1 - distance / 520);
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
-      const homeRect = pointer.root.getBoundingClientRect();
-      const homePx = ((pointer.x - homeRect.left) / homeRect.width - 0.5) * 2;
-      const homePy = ((pointer.y - homeRect.top) / homeRect.height - 0.5) * 2;
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
       pointer.root.style.setProperty("--hero-rail-up-duration", `${28 + easedProximity * 34}s`);
@@ -1394,14 +1453,6 @@ function App() {
 
       pointer.root.style.setProperty("--hero-shake", `${shake}px`);
       pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
-      pointer.root.style.setProperty("--home-rx", `${homePy * -8}deg`);
-      pointer.root.style.setProperty("--home-ry", `${homePx * 10}deg`);
-      pointer.root.style.setProperty("--home-logo-x", `${homePx * 14}px`);
-      pointer.root.style.setProperty("--home-logo-y", `${homePy * 10}px`);
-      pointer.root.style.setProperty("--home-title-x", `${homePx * -8}px`);
-      pointer.root.style.setProperty("--home-title-y", `${homePy * -6}px`);
-      pointer.root.style.setProperty("--home-glow-x", `${50 + homePx * 20}%`);
-      pointer.root.style.setProperty("--home-glow-y", `${48 + homePy * 18}%`);
     });
   }
 
@@ -1418,14 +1469,6 @@ function App() {
     event.currentTarget.style.setProperty("--hero-spin-duration", "10s");
     event.currentTarget.style.setProperty("--hero-shake", "0px");
     event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
-    event.currentTarget.style.setProperty("--home-rx", "0deg");
-    event.currentTarget.style.setProperty("--home-ry", "0deg");
-    event.currentTarget.style.setProperty("--home-logo-x", "0px");
-    event.currentTarget.style.setProperty("--home-logo-y", "0px");
-    event.currentTarget.style.setProperty("--home-title-x", "0px");
-    event.currentTarget.style.setProperty("--home-title-y", "0px");
-    event.currentTarget.style.setProperty("--home-glow-x", "50%");
-    event.currentTarget.style.setProperty("--home-glow-y", "48%");
   }
 
   function moveHeroCardLight(event: React.PointerEvent<HTMLButtonElement>) {
@@ -2182,6 +2225,7 @@ function App() {
   if (!isAuthenticated) {
     return (
       <DiscordLoginScreen
+        cardSources={loginCardSources}
         loading={loading}
         status={status}
         onCheck={loadAdminProfile}
@@ -2324,13 +2368,29 @@ function App() {
                 <div className="home-brand-aura" />
                 <img
                   src="/hardy-h.png"
+                  aria-hidden="true"
+                  className="home-logo-depth home-logo-depth--back mx-auto h-[300px] w-[300px] object-contain"
+                />
+                <img
+                  src="/hardy-h.png"
+                  aria-hidden="true"
+                  className="home-logo-depth home-logo-depth--front mx-auto h-[300px] w-[300px] object-contain"
+                />
+                <img
+                  src="/hardy-h.png"
                   className="home-logo mx-auto h-[300px] w-[300px] object-contain opacity-95"
                 />
                 <div className="home-title -mt-16 text-center">
-                  <div className="home-title-line home-title-line--main text-[76px] font-black leading-none text-white">
+                  <div
+                    className="home-title-line home-title-line--main text-[76px] font-black leading-none text-white"
+                    data-text="HARDY"
+                  >
                     HARDY
                   </div>
-                  <div className="home-title-line home-title-line--sub text-[74px] font-black leading-none">
+                  <div
+                    className="home-title-line home-title-line--sub text-[74px] font-black leading-none"
+                    data-text="MODS"
+                  >
                     MODS
                   </div>
                 </div>
@@ -3474,11 +3534,13 @@ function TreeView({
 }
 
 function DiscordLoginScreen({
+  cardSources,
   loading,
   status,
   onCheck,
   onLogin,
 }: {
+  cardSources: LoginCardSource[];
   loading: boolean;
   status: string;
   onCheck: () => void;
@@ -3486,7 +3548,7 @@ function DiscordLoginScreen({
 }) {
   const loginMotionFrame = useRef<number | null>(null);
   const loginMotionPointer = useRef<{ root: HTMLElement; x: number; y: number } | null>(null);
-  const loginCards = useMemo(() => createLoginCards(), []);
+  const loginCards = useMemo(() => createLoginCards(cardSources), [cardSources]);
 
   function moveLoginCards(event: React.PointerEvent<HTMLElement>) {
     loginMotionPointer.current = {
@@ -3606,6 +3668,11 @@ function DiscordLoginScreen({
                 } as CssVars
               }
             >
+              {card.image ? (
+                <img src={card.image} className="login-float-card-image" />
+              ) : (
+                <div className="login-float-card-fallback" />
+              )}
               <div className="login-float-card-sheen" />
               <div className="login-float-card-mark">{card.accent}</div>
               <div className="login-float-card-copy">

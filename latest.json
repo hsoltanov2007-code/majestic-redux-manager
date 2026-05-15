@@ -1,11 +1,11 @@
 {
-  "version": "0.1.62",
-  "notes": "Add randomized 3D login cards and richer animated home hero.",
-  "pub_date": "2026-05-15T10:14:04.546Z",
+  "version": "0.1.63",
+  "notes": "Fix static 3D Hardy logo/text and show real randomized redux cards on login.",
+  "pub_date": "2026-05-15T10:42:07.882Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTg1cXJER3BucENYUVBLS2t6cEtpWDlyU0R2aDR3bUMzSnlNdEViYWIrQTVGVExBK1p1cDhnMDJYWStRT1pOcEVUamxodjBjOWxyV0VtUzVUQ3Y1dGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQwMDI2CWZpbGU6SGFyZHkgTU9EU18wLjEuNjJfeDY0LXNldHVwLmV4ZQo2TGFwUnBBSTZOa0plNlpjd3hXYWtvbGpqejU4NXZDMWpiQVBqMFZZem1uQUlHMjh1RXRNcy8zQWphU2ZsRlp6b1I2d1dsS2E4cnRwUFRXMHFDWjRBdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.62/Hardy.MODS_0.1.62_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTFTUXNDbHZmelB0WWR0QldzY3VBSHJaL2RjUUVUZlVTOTB6czcrVHFHOFVHL1prWDl6aFJtRkp4TDhsbUlNdXovL1h1UlpTSEZmSVo4RE5oMVoyckFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQxNzEzCWZpbGU6SGFyZHkgTU9EU18wLjEuNjNfeDY0LXNldHVwLmV4ZQpYSzVIZlowL1p2a2ZpWm1PTFlMN1NMOG5zdlBvRnNCM2pleFRTeG9GQmM5TFRFMHA4VnJGMlpwVXl1cXRHdDVjbE5rWFg5T21vam9Mek40WWIwMHVDUT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.63/Hardy.MODS_0.1.63_x64-setup.exe"
     }
   }
 }
