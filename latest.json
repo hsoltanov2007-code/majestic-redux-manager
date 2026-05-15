@@ -1,11 +1,11 @@
 {
-  "version": "0.1.68",
-  "notes": "Hardy MODS v0.1.68: новый светящийся курсор, новый логотип, раздельные буквы HARDY MODS, счётчик админов онлайн, статистика пользователей и поддержка с ответами из админки.",
-  "pub_date": "2026-05-15T21:11:19.7510609Z",
+  "version": "0.1.69",
+  "notes": "Hardy MODS v0.1.69: сверху возвращена кнопка-домик, exe/installer иконки пересобраны из нового H-логотипа, а буквы HARDY MODS закреплены ровной сеткой без кривого разлёта.",
+  "pub_date": "2026-05-15T21:59:19.8682581Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTl2YWRUNnNQTzF5MUQ0djVkNlFBdVZnYlRhS2x4RnYzck84WWtpWTBOUVdZWHFiT3ZFNE9DSTF5U3VKQ3FkTEZSTTNHNmVpY2RYcFVtTjhYb1Mwb1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODc5NDUxCWZpbGU6SGFyZHkgTU9EU18wLjEuNjhfeDY0LXNldHVwLmV4ZQprOUZ5TVdTcCt5czNBclcwOVN1TmhGa3czRzdjNmVsYXRRVkRRaG9nT0tVMXdtNXFQaHp5WFpkSEJUMHlDRzdweFBlYVEzeEhndHlmejcza0RSUWlDZz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.68/Hardy.MODS_0.1.68_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTZqTEc4RGNkYk1maGRrZ3VOWjVUc2dqMzl2N3g2MnBENTNnSGw0cm1IWmZkMzN6WnhjRTVEdXh4aGhFNVJNRFNzWDVsbFZNUEdVY0RHMWUxK3RQNVFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODgyMzI2CWZpbGU6SGFyZHkgTU9EU18wLjEuNjlfeDY0LXNldHVwLmV4ZQpCTGJFbmRKSzJlNlg5anhobGJzSFlodDV4aWRNbXU1ZVpueTNMa1liRlhQcjUxU2I4U1d1Rk1NL01JTzZVbjZhUjV6NEFZUW96TFg0bkV6S1RrOTJDZz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.69/Hardy.MODS_0.1.69_x64-setup.exe"
     }
   }
 }

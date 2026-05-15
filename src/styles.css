@@ -371,11 +371,8 @@ div {
 }
 
 .brand-wordmark {
-  --brand-size: clamp(4.25rem, 7.6vw, 7.85rem);
-  --brand-bottom-size: clamp(3.6rem, 6.4vw, 6.65rem);
-  --brand-gap: clamp(-0.54rem, -0.65vw, -0.22rem);
-  width: clamp(330px, 33vw, 520px);
-  aspect-ratio: 560 / 330;
+  width: clamp(310px, 29vw, 470px);
+  aspect-ratio: 560 / 315;
   position: relative;
   display: block;
   pointer-events: none;
@@ -386,7 +383,7 @@ div {
 .brand-wordmark::before {
   content: "";
   position: absolute;
-  inset: 10% -7% 2%;
+  inset: 12% -5% 4%;
   z-index: -2;
   background:
     radial-gradient(circle at 42% 34%, rgba(255, 211, 229, 0.34), transparent 38%),
@@ -399,230 +396,38 @@ div {
 .brand-wordmark-inner {
   position: absolute;
   inset: 0;
-  display: grid;
-  align-content: center;
-  justify-items: center;
   transform: translate3d(0, 0, 40px) rotate(-1deg);
   transform-style: preserve-3d;
 }
 
-.brand-wordmark-image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  user-select: none;
-  filter:
-    drop-shadow(0 12px 0 rgba(0, 0, 0, 0.58))
-    drop-shadow(0 20px 18px rgba(0, 0, 0, 0.42))
-    drop-shadow(0 0 18px rgba(255, 211, 229, 0.2));
-  animation: brand-wordmark-breathe 6s ease-in-out infinite both;
-}
-
 .brand-wordmark-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: var(--brand-gap);
-  letter-spacing: 0;
-  transform-style: preserve-3d;
-  width: 100%;
-}
-
-.brand-wordmark-row--bottom {
-  margin-top: calc(var(--brand-size) * -0.38);
-  padding-left: 7.5%;
-}
-
-.brand-letter {
-  position: relative;
-  display: inline-block;
-  min-width: 0.62em;
-  color: transparent;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: var(--brand-size);
-  font-weight: 900;
-  line-height: 0.82;
-  letter-spacing: 0;
-  text-align: center;
-  text-transform: uppercase;
-  background: linear-gradient(
-    135deg,
-    #ffffff 0%,
-    #96989d 18%,
-    #f7f8fb 34%,
-    #55575f 52%,
-    #f3f4f7 74%,
-    #868b94 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.7);
-  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.42))
-    drop-shadow(0 0 18px rgba(255, 255, 255, 0.24));
-  text-shadow:
-    1px 1px 0 rgba(255, 255, 255, 0.64),
-    2px 3px 0 rgba(136, 128, 154, 0.48),
-    4px 5px 0 rgba(42, 32, 58, 0.58),
-    0 0 28px rgba(255, 255, 255, 0.24);
-  transform: var(--brand-letter-transform, translateZ(0));
-  transform-style: preserve-3d;
-  isolation: isolate;
-}
-
-.brand-letter::before,
-.brand-letter::after {
-  content: attr(data-letter);
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  color: transparent;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(88, 76, 105, 0.88));
-  -webkit-background-clip: text;
-  background-clip: text;
-  pointer-events: none;
-}
-
-.brand-letter::before {
-  transform: translate3d(4px, 6px, -24px);
-  filter: blur(0.25px);
-  opacity: 0.42;
-}
-
-.brand-letter::after {
-  transform: translate3d(-1px, -2px, 18px);
-  filter: blur(0.2px);
-  opacity: 0.3;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.56);
-}
-
-.brand-letter--bottom {
-  min-width: 0.66em;
-  font-size: var(--brand-bottom-size);
-  background: linear-gradient(
-    135deg,
-    #f3e9ff 0%,
-    #b99dff 18%,
-    #7c3cff 48%,
-    #ebe0ff 69%,
-    #5c23e6 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-stroke: 1px rgba(211, 190, 255, 0.72);
-  filter: drop-shadow(0 13px 16px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 28px rgba(132, 84, 255, 0.46));
-  text-shadow:
-    1px 1px 0 rgba(239, 230, 255, 0.72),
-    2px 3px 0 rgba(95, 56, 194, 0.56),
-    4px 6px 0 rgba(28, 14, 62, 0.72),
-    0 0 28px rgba(139, 92, 246, 0.64);
-}
-
-.brand-letter--bottom::before {
-  background: linear-gradient(135deg, rgba(169, 132, 255, 0.9), rgba(43, 19, 96, 0.9));
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-.brand-letter--h {
-  min-width: 0.78em;
-  font-family: "Times New Roman", Georgia, serif;
-  font-size: calc(var(--brand-size) * 1.2);
-  font-weight: 900;
-  transform: translate3d(0, 0.055em, 24px) rotateX(7deg) rotateY(-9deg) skewY(-2deg) scaleX(0.92);
-  -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.86);
-}
-
-.brand-letter--h::before {
-  transform: translate3d(5px, 7px, -28px) skewY(-2deg);
-}
-
-.brand-letter--h::after {
-  content: "";
-  inset: auto 0.1em 0.36em 0.08em;
-  height: 0.09em;
-  z-index: 2;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.98) 18%, rgba(236, 229, 255, 0.96) 72%, transparent);
-  box-shadow:
-    0 0 16px rgba(255, 255, 255, 0.72),
-    0 0 24px rgba(132, 84, 255, 0.38);
-  opacity: 0.9;
-  transform: translate3d(0.02em, 0, 34px) rotate(-17deg);
-}
-
-.brand-wordmark-row--top .brand-letter--1 {
-  transform: translate3d(0, 0.02em, 9px) rotateX(5deg) rotateY(5deg) skewX(-3deg);
-}
-
-.brand-wordmark-row--top .brand-letter--2 {
-  transform: translate3d(0, -0.015em, 14px) rotateX(4deg) rotateY(-4deg) skewX(2deg);
-}
-
-.brand-wordmark-row--top .brand-letter--3 {
-  transform: translate3d(0, 0.025em, 8px) rotateX(6deg) rotateY(4deg) skewX(-2deg);
-}
-
-.brand-wordmark-row--top .brand-letter--4 {
-  transform: translate3d(0, -0.005em, 16px) rotateX(4deg) rotateY(-5deg) skewX(3deg);
-}
-
-.brand-wordmark-row--bottom .brand-letter--0 {
-  transform: translate3d(0, 0.01em, 15px) rotateX(5deg) rotateY(6deg) skewX(-3deg);
-}
-
-.brand-wordmark-row--bottom .brand-letter--1 {
-  transform: translate3d(0, -0.025em, 21px) rotateX(4deg) rotateY(-4deg) skewX(2deg);
-}
-
-.brand-wordmark-row--bottom .brand-letter--2 {
-  transform: translate3d(0, 0.01em, 14px) rotateX(6deg) rotateY(5deg) skewX(-2deg);
-}
-
-.brand-wordmark-row--bottom .brand-letter--3 {
-  transform: translate3d(0, -0.015em, 18px) rotateX(4deg) rotateY(-6deg) skewX(4deg);
-}
-
-.brand-wordmark--login {
-  --brand-size: clamp(3.8rem, 6.2vw, 6.45rem);
-  --brand-bottom-size: clamp(3.1rem, 5.35vw, 5.35rem);
-  width: clamp(300px, 30vw, 460px);
-}
-
-.brand-wordmark--mini {
-  --brand-size: 1.85rem;
-  --brand-bottom-size: 1.58rem;
-  --brand-gap: -0.12rem;
-  width: 7.2rem;
-  transform: translateZ(40px);
-}
-
-.brand-wordmark--mini .brand-letter {
-  -webkit-text-stroke-width: 0.55px;
-  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42))
-    drop-shadow(0 0 14px rgba(255, 255, 255, 0.16));
-  text-shadow:
-    1px 1px 0 rgba(255, 255, 255, 0.5),
-    3px 4px 0 rgba(54, 44, 74, 0.5);
+  display: contents;
 }
 
 .brand-letter--image {
-  width: calc(var(--brand-size) * 0.82);
-  height: calc(var(--brand-size) * 0.82);
+  position: absolute;
+  width: 22%;
+  height: 36%;
   min-width: 0;
   background: none;
   color: transparent;
   font-size: 0;
   line-height: 0;
-  text-shadow: none;
-  -webkit-background-clip: initial;
-  background-clip: initial;
-  -webkit-text-stroke: 0;
   filter:
-    drop-shadow(0 14px 0 rgba(0, 0, 0, 0.62))
-    drop-shadow(0 18px 18px rgba(0, 0, 0, 0.46))
-    drop-shadow(0 0 18px rgba(255, 211, 229, 0.2));
+    drop-shadow(0 13px 0 rgba(0, 0, 0, 0.62))
+    drop-shadow(0 17px 16px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 16px rgba(255, 211, 229, 0.18));
+  transform-style: preserve-3d;
   will-change: transform;
+}
+
+.brand-letter--bottom.brand-letter--image {
+  width: 24%;
+  height: 35%;
+  filter:
+    drop-shadow(0 12px 0 rgba(0, 0, 0, 0.68))
+    drop-shadow(0 17px 16px rgba(0, 0, 0, 0.48))
+    drop-shadow(0 0 16px rgba(255, 189, 217, 0.16));
 }
 
 .brand-letter--image::before,
@@ -637,58 +442,80 @@ div {
   height: 100%;
   object-fit: contain;
   user-select: none;
-  animation: brand-letter-sway 5.8s ease-in-out infinite both;
+  animation: brand-letter-sway 9s ease-in-out infinite both;
   animation-delay: var(--brand-letter-delay, 0s);
   will-change: transform;
 }
 
-.brand-letter--bottom.brand-letter--image {
-  width: calc(var(--brand-bottom-size) * 0.9);
-  height: calc(var(--brand-bottom-size) * 0.9);
-  filter:
-    drop-shadow(0 12px 0 rgba(0, 0, 0, 0.68))
-    drop-shadow(0 18px 18px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 18px rgba(255, 189, 217, 0.18));
-}
-
 .brand-wordmark-row--top .brand-letter--image.brand-letter--0 {
-  transform: translate3d(0, 0.08em, 24px) rotate(-7deg) scale(1.05);
+  left: 1%;
+  top: 22%;
+  transform: translate3d(0, 0, 20px) rotate(-3deg) scale(1.06);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--1 {
-  transform: translate3d(0, 0.04em, 44px) rotate(8deg) scale(0.92);
+  left: 17%;
+  top: 21%;
+  transform: translate3d(0, 0, 20px) rotate(1.5deg) scale(1.02);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--2 {
-  transform: translate3d(0, 0.02em, 62px) rotate(-8deg) scale(0.98);
+  left: 34%;
+  top: 17%;
+  transform: translate3d(0, 0, 20px) rotate(-1.5deg) scale(1.08);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--3 {
-  transform: translate3d(0, 0.02em, 48px) rotate(6deg) scale(0.96);
+  left: 52%;
+  top: 20%;
+  transform: translate3d(0, 0, 20px) rotate(1.2deg) scale(1.03);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--4 {
-  transform: translate3d(0, 0.04em, 40px) rotate(9deg) scale(1.02);
+  left: 70%;
+  top: 18%;
+  transform: translate3d(0, 0, 20px) rotate(3deg) scale(1.06);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--0 {
-  transform: translate3d(0, -0.02em, 36px) rotate(-5deg) scale(1.04);
+  left: 17%;
+  top: 45%;
+  transform: translate3d(0, 0, 18px) rotate(-2.5deg) scale(1.08);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--1 {
-  transform: translate3d(0, 0, 48px) rotate(7deg) scale(0.95);
+  left: 34%;
+  top: 46%;
+  transform: translate3d(0, 0, 18px) rotate(1.5deg) scale(1.04);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--2 {
-  transform: translate3d(0, 0.01em, 42px) rotate(-7deg) scale(0.98);
+  left: 51%;
+  top: 44%;
+  transform: translate3d(0, 0, 18px) rotate(-1.5deg) scale(1.04);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--3 {
-  transform: translate3d(0, -0.01em, 52px) rotate(8deg) scale(0.96);
+  left: 67%;
+  top: 45%;
+  transform: translate3d(0, 0, 18px) rotate(2.5deg) scale(1.04);
+}
+
+.brand-wordmark--login {
+  width: clamp(300px, 30vw, 460px);
+}
+
+.brand-wordmark--mini {
+  width: 7.2rem;
+  transform: translateZ(40px);
 }
 
 .brand-wordmark--mini .brand-letter--image {
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.72)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.48));
+}
+
+.brand-wordmark--mini .brand-letter--image img {
+  animation: none;
 }
 
 .login-panel-logo {

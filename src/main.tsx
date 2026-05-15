@@ -30,6 +30,7 @@ import {
   FolderOpen,
   FolderSearch,
   Gamepad2,
+  Home,
   ImageIcon,
   Info,
   Layers,
@@ -234,7 +235,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.68";
+const APP_VERSION = "0.1.69";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -2736,7 +2737,7 @@ function App() {
             }}
             className="grid h-12 w-36 place-items-center rounded-2xl border border-white/15 bg-white/[.035] text-white shadow-[0_0_28px_rgba(255,255,255,.08)] transition hover:bg-white/[.08]"
           >
-            <LogoMark className="h-10 w-10" />
+            <Home size={36} />
           </button>
 
           <nav className="top-nav mx-auto flex h-14 items-center gap-2">
@@ -4600,9 +4601,6 @@ function DiscordLoginScreen({
             </div>
           ))}
           <div className="absolute inset-x-10 top-1/2 h-px bg-white/20 shadow-[0_0_34px_rgba(255,255,255,.35)]" />
-          <div className="login-brand-title absolute bottom-24 right-16 text-right">
-            <BrandWordmark variant="login" />
-          </div>
         </div>
       </main>
     </div>
