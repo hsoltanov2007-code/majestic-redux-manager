@@ -347,11 +347,12 @@ div {
 .home-stage {
   isolation: isolate;
   --hero-proximity: 0;
-  --hero-rail-up-duration: 30s;
-  --hero-rail-down-duration: 34s;
-  --hero-spin-duration: 12s;
+  --hero-rail-up-duration: 28s;
+  --hero-rail-down-duration: 32s;
+  --hero-spin-duration: 10s;
   --hero-shake: 0px;
   --hero-shake-neg: 0px;
+  transform-style: preserve-3d;
 }
 
 .home-stage::before {
@@ -368,7 +369,8 @@ div {
 
 .hero-rail-stage {
   overflow: hidden;
-  perspective: 1500px;
+  perspective: 1900px;
+  transform-style: preserve-3d;
   mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
 }
 
@@ -420,8 +422,16 @@ div {
 .hero-strip-card {
   --mx: 50%;
   --my: 50%;
+  --px: 0;
+  --py: 0;
+  --image-x: 0px;
+  --image-y: 0px;
+  --copy-x: 0px;
+  --copy-y: 0px;
   --rx: 0deg;
   --ry: 0deg;
+  --hero-card-pop: 0px;
+  --hero-card-scale: 1;
   position: relative;
   display: block;
   width: clamp(220px, 17.25vw, 260px);
@@ -432,14 +442,24 @@ div {
   background: transparent;
   color: inherit;
   cursor: pointer;
-  transform: perspective(1100px) rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+  outline: none;
+  transform: perspective(1200px) translate3d(0, 0, var(--hero-card-pop))
+    rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--hero-card-scale));
   transform-style: preserve-3d;
   transition:
     filter 180ms ease,
-    transform 180ms ease;
+    transform 80ms ease,
+    opacity 180ms ease;
   will-change: transform;
   backface-visibility: hidden;
-  contain: layout paint style;
+  contain: layout style;
+}
+
+.hero-strip-card::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 34px;
 }
 
 .hero-rail-up .hero-strip-card:nth-child(2n) {
@@ -459,8 +479,15 @@ div {
 }
 
 .hero-strip-card:hover {
+  --hero-card-pop: 54px;
+  --hero-card-scale: 1.055;
   z-index: 8;
-  filter: brightness(1.18) contrast(1.08);
+  filter: brightness(1.22) contrast(1.1);
+}
+
+.hero-strip-card:active {
+  --hero-card-pop: 38px;
+  --hero-card-scale: 1.025;
 }
 
 .hero-strip-card-motion {
@@ -492,6 +519,7 @@ div {
 
 .hero-strip-card-inner {
   position: relative;
+  z-index: 1;
   height: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -506,8 +534,23 @@ div {
     0 0 30px rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
-  transform: translateZ(28px);
+  transform: translateZ(34px);
+  transform-style: preserve-3d;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
   backface-visibility: hidden;
+}
+
+.hero-strip-card:hover .hero-strip-card-inner {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 28px 76px rgba(0, 0, 0, 0.62),
+    0 0 48px rgba(132, 84, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -34px 54px rgba(0, 0, 0, 0.36);
+  transform: translateZ(58px);
 }
 
 .hero-strip-card-image {
@@ -517,6 +560,19 @@ div {
   object-position: center;
   opacity: 0.84;
   filter: grayscale(0.36) saturate(0.95) contrast(1.12);
+  transform: translate3d(var(--image-x), var(--image-y), 24px) scale(1.08);
+  transform-style: preserve-3d;
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease,
+    transform 80ms ease;
+  will-change: transform;
+}
+
+.hero-strip-card:hover .hero-strip-card-image {
+  opacity: 0.94;
+  filter: grayscale(0.12) saturate(1.12) contrast(1.08);
+  transform: translate3d(var(--image-x), var(--image-y), 36px) scale(1.13);
 }
 
 .hero-strip-card-fallback {
@@ -541,8 +597,8 @@ div {
   pointer-events: none;
   background: radial-gradient(
     150px circle at var(--mx) var(--my),
-    rgba(255, 255, 255, 0.42),
-    rgba(255, 255, 255, 0.12) 34%,
+    rgba(255, 255, 255, 0.58),
+    rgba(147, 92, 255, 0.18) 34%,
     transparent 62%
   );
   mix-blend-mode: screen;
@@ -554,12 +610,29 @@ div {
   opacity: 1;
 }
 
+.hero-strip-card-copy {
+  pointer-events: none;
+  transform: translate3d(var(--copy-x), var(--copy-y), 86px);
+  transform-style: preserve-3d;
+  transition: transform 80ms ease;
+  will-change: transform;
+}
+
+.hero-strip-card-badge {
+  box-shadow: 0 0 18px rgba(132, 84, 255, 0.18);
+  transform: translateZ(18px);
+}
+
 .hero-strip-card-title {
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
   font-size: clamp(0.9rem, 1.08vw, 1.08rem);
   line-height: 1.08;
+  transform: translateZ(26px);
+  text-shadow:
+    0 2px 14px rgba(0, 0, 0, 0.9),
+    0 0 18px rgba(255, 255, 255, 0.18);
 }
 
 .catalog-section {

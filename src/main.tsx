@@ -176,6 +176,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
+const APP_VERSION = "0.1.61";
 
 const LOGIN_CARD_TITLES = [
   ["Redux", "visual pack", "RD"],
@@ -655,10 +656,10 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
-  const [releaseVersion, setReleaseVersion] = useState("0.1.60");
+  const [releaseVersion, setReleaseVersion] = useState(APP_VERSION);
   const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
   const [releaseUrl, setReleaseUrl] = useState(
-    "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.60/Hardy.MODS_0.1.60_x64-setup.exe",
+    `https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v${APP_VERSION}/Hardy.MODS_${APP_VERSION}_x64-setup.exe`,
   );
   const [releaseSignature, setReleaseSignature] = useState("");
   const [adminApiUrl, setAdminApiUrl] = useState(initialAdminConnection.apiUrl);
@@ -1342,14 +1343,14 @@ function App() {
       const outsideX = Math.max(rect.left - pointer.x, 0, pointer.x - rect.right);
       const outsideY = Math.max(rect.top - pointer.y, 0, pointer.y - rect.bottom);
       const distance = Math.hypot(outsideX, outsideY);
-      const proximity = clamp01(1 - distance / 420);
+      const proximity = clamp01(1 - distance / 520);
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
-      pointer.root.style.setProperty("--hero-rail-up-duration", `${30 + easedProximity * 24}s`);
-      pointer.root.style.setProperty("--hero-rail-down-duration", `${34 + easedProximity * 26}s`);
-      pointer.root.style.setProperty("--hero-spin-duration", `${12 + easedProximity * 18}s`);
-      const shake = easedProximity * 1.55;
+      pointer.root.style.setProperty("--hero-rail-up-duration", `${28 + easedProximity * 34}s`);
+      pointer.root.style.setProperty("--hero-rail-down-duration", `${32 + easedProximity * 36}s`);
+      pointer.root.style.setProperty("--hero-spin-duration", `${10 + easedProximity * 26}s`);
+      const shake = easedProximity * 2.4;
 
       pointer.root.style.setProperty("--hero-shake", `${shake}px`);
       pointer.root.style.setProperty("--hero-shake-neg", `${-shake}px`);
@@ -1364,9 +1365,9 @@ function App() {
 
     heroMotionPointer.current = null;
     event.currentTarget.style.setProperty("--hero-proximity", "0");
-    event.currentTarget.style.setProperty("--hero-rail-up-duration", "30s");
-    event.currentTarget.style.setProperty("--hero-rail-down-duration", "34s");
-    event.currentTarget.style.setProperty("--hero-spin-duration", "12s");
+    event.currentTarget.style.setProperty("--hero-rail-up-duration", "28s");
+    event.currentTarget.style.setProperty("--hero-rail-down-duration", "32s");
+    event.currentTarget.style.setProperty("--hero-spin-duration", "10s");
     event.currentTarget.style.setProperty("--hero-shake", "0px");
     event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
   }
@@ -1376,11 +1377,19 @@ function App() {
     const rect = card.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const rx = (y / rect.height - 0.5) * -10;
-    const ry = (x / rect.width - 0.5) * 12;
+    const px = (x / rect.width - 0.5) * 2;
+    const py = (y / rect.height - 0.5) * 2;
+    const rx = py * -20;
+    const ry = px * 24;
 
     card.style.setProperty("--mx", `${x}px`);
     card.style.setProperty("--my", `${y}px`);
+    card.style.setProperty("--px", px.toFixed(3));
+    card.style.setProperty("--py", py.toFixed(3));
+    card.style.setProperty("--image-x", `${px * -18}px`);
+    card.style.setProperty("--image-y", `${py * -18}px`);
+    card.style.setProperty("--copy-x", `${px * 7}px`);
+    card.style.setProperty("--copy-y", `${py * 5}px`);
     card.style.setProperty("--rx", `${rx}deg`);
     card.style.setProperty("--ry", `${ry}deg`);
   }
@@ -1390,6 +1399,12 @@ function App() {
 
     card.style.setProperty("--rx", "0deg");
     card.style.setProperty("--ry", "0deg");
+    card.style.setProperty("--px", "0");
+    card.style.setProperty("--py", "0");
+    card.style.setProperty("--image-x", "0px");
+    card.style.setProperty("--image-y", "0px");
+    card.style.setProperty("--copy-x", "0px");
+    card.style.setProperty("--copy-y", "0px");
     card.style.setProperty("--mx", "50%");
     card.style.setProperty("--my", "50%");
   }
@@ -2344,8 +2359,8 @@ function App() {
                               )}
                               <div className="hero-strip-card-shade" />
                               <div className="hero-strip-card-light" />
-                              <div className="absolute bottom-4 left-4 right-4 text-left">
-                                <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
+                              <div className="hero-strip-card-copy absolute bottom-4 left-4 right-4 text-left">
+                                <div className="hero-strip-card-badge mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
                                   <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
                                   {category.title || "Redux"}
                                 </div>
@@ -3256,7 +3271,9 @@ function App() {
               </PurpleButton>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-4 gap-6">
+              <SettingsCard icon={<FileText />} title="App Version" value={`v${APP_VERSION}`} />
+
               <SettingsCard
                 icon={<Gamepad2 />}
                 title="GTA V"

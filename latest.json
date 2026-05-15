@@ -1,11 +1,11 @@
 {
-  "version": "0.1.60",
-  "notes": "Restore v0.1.58-style hero cards with smoother unclipped motion and keep catalog/login fixes.",
-  "pub_date": "2026-05-14T21:49:24.356Z",
+  "version": "0.1.61",
+  "notes": "Add app version to Settings and upgrade home cards with stronger 3D cursor interaction.",
+  "pub_date": "2026-05-15T09:31:03.487Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTVXQm1DQ2MxU2tRdmQydWdMc2xScjk1WTl4UWhXNTZ0RnpkcGpOOTBZMFlMRDlzczlmbEJONWRCRnJJQzQxUWVOdXI2VHhnem1xaWJFNVlQeUpPNlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4Nzk1MzU0CWZpbGU6SGFyZHkgTU9EU18wLjEuNjBfeDY0LXNldHVwLmV4ZQpYWG9kMGZycUZIcTg4Z2hBMXd2WFBaMUZGVldNanVLZ1pFaXFtU3RUdDZOd1p5b1lldTAyd0FtbVhSUWxtRXF5K012dEZ2eldETjdGUUJkdGpuZXBBUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.60/Hardy.MODS_0.1.60_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTRVYWpONFJRWWRHNHJhOGs5SVhnNUZZQzFRclYyYlRJNDRVVGVRQkdkdXVjTkRvcG5GamUrYmZqTzAzdzdMVDVxZ2x1b3l0WWliZlVEZC8yNVY5Q2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODM3NDQ5CWZpbGU6SGFyZHkgTU9EU18wLjEuNjFfeDY0LXNldHVwLmV4ZQpITmwyNk9aTER0QmVMWWlZK05lMnRUd1F5NHlJekZ4ZndCRlpxK3dFWE1rN1duSDBKZy9IUU1vSkFPdE9yQStTNCtabnZLaWZPUWRoSTI4NjhueHVCQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.61/Hardy.MODS_0.1.61_x64-setup.exe"
     }
   }
 }
