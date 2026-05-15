@@ -1,11 +1,11 @@
 {
-  "version": "0.1.63",
-  "notes": "Fix static 3D Hardy logo/text and show real randomized redux cards on login.",
-  "pub_date": "2026-05-15T10:42:07.882Z",
+  "version": "0.1.64",
+  "notes": "Hardy MODS v0.1.64: русский интерфейс, новый 3D логотип, улучшенный фон и плавные 3D-карточки.",
+  "pub_date": "2026-05-15T11:47:12.961Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTFTUXNDbHZmelB0WWR0QldzY3VBSHJaL2RjUUVUZlVTOTB6czcrVHFHOFVHL1prWDl6aFJtRkp4TDhsbUlNdXovL1h1UlpTSEZmSVo4RE5oMVoyckFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQxNzEzCWZpbGU6SGFyZHkgTU9EU18wLjEuNjNfeDY0LXNldHVwLmV4ZQpYSzVIZlowL1p2a2ZpWm1PTFlMN1NMOG5zdlBvRnNCM2pleFRTeG9GQmM5TFRFMHA4VnJGMlpwVXl1cXRHdDVjbE5rWFg5T21vam9Mek40WWIwMHVDUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.63/Hardy.MODS_0.1.63_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTRHaFdPNFM1M2c5TG5Dd0xxdWkyc0tIUVdhdUFjdjJaZmgzV3NnaitEL09IZW9vZFM3UDhyQjQwdVZYMXphVm1RMEc2Y1A5Tjc5QlJpSnZ4WEZuU2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4ODQ1NTYyCWZpbGU6SGFyZHkgTU9EU18wLjEuNjRfeDY0LXNldHVwLmV4ZQo4MTk0eXZSd2NYZi85UjI1b0xVdkZLK1RTOVJQdEpGN2lrdVhTdFFUSnYxU0ZKYjRiQlNUeUYxTzlGL2RoOG9IaFFyT2RlMWV2c2pHSDFuRG1FVUlCdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.64/Hardy.MODS_0.1.64_x64-setup.exe"
     }
   }
 }

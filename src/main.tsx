@@ -184,17 +184,25 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.63";
+const APP_VERSION = "0.1.64";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
-  { title: "MAD REDUX v3.0", subtitle: "Redux", accent: "RD" },
-  { title: "Thugger Redux", subtitle: "Redux", accent: "RD" },
-  { title: "HardyGunPack", subtitle: "GunPack", accent: "GP" },
-  { title: "Majestic Redux", subtitle: "Redux", accent: "RD" },
-  { title: "Light Redux", subtitle: "Graphics", accent: "GX" },
-  { title: "Venom Redux", subtitle: "Redux", accent: "VX" },
-  { title: "Best Redux", subtitle: "Graphics", accent: "BR" },
+  { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
+  { title: "Thugger Redux", subtitle: "Редукс", accent: "РД" },
+  { title: "HardyGunPack", subtitle: "Оружие", accent: "ОР" },
+  { title: "Majestic Redux", subtitle: "Редукс", accent: "РД" },
+  { title: "Light Redux", subtitle: "Графика", accent: "ГР" },
+  { title: "Venom Redux", subtitle: "Редукс", accent: "РД" },
+  { title: "Best Redux", subtitle: "Графика", accent: "ГР" },
 ];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  graphics: "Графика",
+  gunpack: "Оружие",
+  redux: "Редукс",
+  sound: "Звуки",
+  timecycle: "Освещение",
+};
 
 const emptyState: AppState = {
   gtaPath: "",
@@ -226,14 +234,33 @@ function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
+function getCategoryTitle(category?: Pick<Category, "id" | "title"> | null) {
+  const id = category?.id?.toLowerCase().trim() || "";
+  const title = category?.title?.toLowerCase().trim() || "";
+
+  if (CATEGORY_LABELS[id]) return CATEGORY_LABELS[id];
+  if (CATEGORY_LABELS[title]) return CATEGORY_LABELS[title];
+  if (title.includes("redux")) return "Редукс";
+  if (title.includes("gun")) return "Оружие";
+  if (title.includes("graphic")) return "Графика";
+  if (title.includes("sound")) return "Звуки";
+
+  return category?.title || "Моды";
+}
+
+function getRoleTitle(role?: AdminUser["role"]) {
+  if (role === "owner") return "владелец";
+  if (role === "admin") return "админ";
+  if (role === "viewer") return "просмотр";
+
+  return "не вошёл";
+}
+
 function buildLoginCardSources(categories: Category[]): LoginCardSource[] {
   return categories.flatMap((category) =>
     category.mods.map((mod) => {
-      const label = category.title || "Redux";
-      const rawAccent = (label || mod.name)
-        .replace(/[^a-z0-9]+/gi, "")
-        .slice(0, 2)
-        .toUpperCase();
+      const label = getCategoryTitle(category);
+      const rawAccent = label.slice(0, 2).toUpperCase();
 
       return {
         title: mod.name,
@@ -242,6 +269,39 @@ function buildLoginCardSources(categories: Category[]): LoginCardSource[] {
         image: mod.image || category.image,
       };
     }),
+  );
+}
+
+function BrandWordmark({ variant = "hero" }: { variant?: "hero" | "login" | "mini" }) {
+  const topLetters = ["H", "A", "R", "D", "Y"];
+  const bottomLetters = ["M", "O", "D", "S"];
+
+  return (
+    <div className={`brand-wordmark brand-wordmark--${variant}`} aria-label="Харди Модс">
+      <div className="brand-wordmark-row brand-wordmark-row--top">
+        {topLetters.map((letter, index) => (
+          <span
+            key={`${letter}-${index}`}
+            className={`brand-letter brand-letter--top brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
+            data-letter={letter}
+          >
+            {letter}
+          </span>
+        ))}
+      </div>
+
+      <div className="brand-wordmark-row brand-wordmark-row--bottom">
+        {bottomLetters.map((letter, index) => (
+          <span
+            key={`${letter}-${index}`}
+            className={`brand-letter brand-letter--bottom brand-letter--${letter.toLowerCase()} brand-letter--${index}`}
+            data-letter={letter}
+          >
+            {letter}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -330,7 +390,7 @@ function randomHex(byteLength = 16) {
 
 async function hashPassword(password: string, salt: string) {
   if (!crypto.subtle) {
-    throw new Error("Secure password hashing is unavailable in this browser context");
+    throw new Error("Безопасное хеширование пароля недоступно в этом браузере");
   }
 
   const input = new TextEncoder().encode(`${salt}:${password}`);
@@ -413,8 +473,8 @@ function normalizeMod(value: unknown, index: number): ModItem | null {
     id: readString(value.id, name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || `mod-${index + 1}`),
     name,
     version: readString(value.version, "1.0.0"),
-    description: readString(value.description, "No description"),
-    size: readString(value.size, "Unknown size"),
+    description: readString(value.description, "Описание не указано"),
+    size: readString(value.size, "Размер неизвестен"),
     image: readString(value.image) || undefined,
     downloadUrl,
     rpfPatches: normalizeRpfPatches(value.rpfPatches ?? value.rpf_patches),
@@ -454,7 +514,7 @@ function normalizeCategories(payload: unknown): Category[] {
 
       return {
         id: readString(entry.id, `category-${index + 1}`),
-        title: readString(entry.title, `Category ${index + 1}`),
+        title: readString(entry.title, `Категория ${index + 1}`),
         description: readString(entry.description),
         image: readString(entry.image) || undefined,
         mods,
@@ -472,8 +532,8 @@ function normalizeCategories(payload: unknown): Category[] {
     ? [
         {
           id: "redux",
-          title: "Redux Mods",
-          description: "Available redux packages",
+          title: "Редукс-моды",
+          description: "Доступные редукс-паки",
           mods,
         },
       ]
@@ -522,7 +582,7 @@ async function fetchCatalog(url: string) {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Catalog request failed: ${response.status}`);
+    throw new Error(`Запрос каталога не удался: ${response.status}`);
   }
 
   return normalizeCatalog(await response.json());
@@ -541,7 +601,7 @@ function sanitizeId(value: string, fallback: string) {
 function createAdminCategory(index = 1): Category {
   return {
     id: `category-${index}`,
-    title: `Category ${index}`,
+    title: `Категория ${index}`,
     description: "",
     mods: [],
   };
@@ -550,7 +610,7 @@ function createAdminCategory(index = 1): Category {
 function createAdminMod(index = 1): ModItem {
   return {
     id: `mod-${index}`,
-    name: `New Mod ${index}`,
+    name: `Новый мод ${index}`,
     version: "1.0.0",
     description: "",
     size: "0 MB",
@@ -724,7 +784,7 @@ function App() {
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
   const [releaseVersion, setReleaseVersion] = useState(APP_VERSION);
-  const [releaseNotes, setReleaseNotes] = useState("Hardy MODS Update");
+  const [releaseNotes, setReleaseNotes] = useState("Обновление Hardy MODS");
   const [releaseUrl, setReleaseUrl] = useState(
     `https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v${APP_VERSION}/Hardy.MODS_${APP_VERSION}_x64-setup.exe`,
   );
@@ -781,7 +841,7 @@ function App() {
         setAdminApiUrl(connection.apiUrl);
         setAdminToken(connection.token);
         setPage("home");
-        setStatus("Discord login complete. Checking session...");
+        setStatus("Вход через Discord завершён. Проверяю сессию...");
         break;
       }
     }
@@ -819,14 +879,14 @@ function App() {
         const profile = profileText ? JSON.parse(profileText) : null;
 
         if (!profileResponse.ok) {
-          throw new Error(profile?.error || `Admin API failed: ${profileResponse.status}`);
+          throw new Error(profile?.error || `Админ-API ответил ошибкой: ${profileResponse.status}`);
         }
 
         if (cancelled) return;
 
         const user = profile.user as AdminUser;
         setAdminMe(user);
-        setStatus(`Logged as ${user.role}`);
+        setStatus(`Вход выполнен: ${getRoleTitle(user.role)}`);
 
         if (user.role === "owner") {
           const adminsResponse = await fetch(`${cleanBase}/api/admins`, {
@@ -839,7 +899,7 @@ function App() {
           const admins = adminsText ? JSON.parse(adminsText) : null;
 
           if (!adminsResponse.ok) {
-            throw new Error(admins?.error || `Admin API failed: ${adminsResponse.status}`);
+            throw new Error(admins?.error || `Админ-API ответил ошибкой: ${adminsResponse.status}`);
           }
 
           if (!cancelled) setBackendAdmins(admins as AdminStateDocument);
@@ -850,7 +910,7 @@ function App() {
           setAdminToken("");
           setAdminMe(null);
           setBackendAdmins(null);
-          setStatus("Discord session expired. Login again.");
+          setStatus("Сессия Discord истекла. Войди снова.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -901,7 +961,7 @@ function App() {
     loadCategories();
 
     if (!isTauriRuntime()) {
-      setStatus("Preview mode: native Tauri actions are simulated");
+      setStatus("Режим предпросмотра: действия Tauri имитируются");
       return;
     }
 
@@ -985,7 +1045,7 @@ function App() {
               category: createAdminCategory(1),
               mod: {
                 ...createAdminMod(1),
-                description: "Redux visual package",
+                description: "Графический редукс-пак",
                 image: "",
                 name: "Majestic Redux",
               },
@@ -994,7 +1054,7 @@ function App() {
               category: createAdminCategory(1),
               mod: {
                 ...createAdminMod(2),
-                description: "Player build",
+                description: "Сборка игрока",
                 image: "",
                 name: "Killa Tops",
               },
@@ -1003,7 +1063,7 @@ function App() {
               category: createAdminCategory(1),
               mod: {
                 ...createAdminMod(3),
-                description: "RPF ready pack",
+                description: "Пак с RPF-заменами",
                 image: "",
                 name: "Venom Redux",
               },
@@ -1012,7 +1072,7 @@ function App() {
               category: createAdminCategory(1),
               mod: {
                 ...createAdminMod(4),
-                description: "Graphics bundle",
+                description: "Графическая сборка",
                 image: "",
                 name: "Best Redux",
               },
@@ -1104,7 +1164,7 @@ function App() {
       setAuthAccount(account);
       setAuthUser(account.username);
       setAuthMode("login");
-      setStatus("Login настроен");
+      setStatus("Вход настроен");
 
       return { ok: true };
     } catch (err) {
@@ -1134,7 +1194,7 @@ function App() {
       writeAuthSession(account.username);
       setAuthAccount(account);
       setAuthUser(account.username);
-      setStatus("Logged in");
+      setStatus("Вход выполнен");
 
       return { ok: true };
     } catch (err) {
@@ -1147,7 +1207,7 @@ function App() {
     setAuthUser(null);
     setPage("home");
     setSelectedCategory(null);
-    setStatus("Logged out");
+    setStatus("Выход выполнен");
   }
 
   async function loadState() {
@@ -1166,7 +1226,7 @@ function App() {
       setSystemPath(state.systemPath || "");
       setInstalledRedux(state.installedRedux || {});
     } catch {
-      setStatus("Ошибка загрузки state");
+      setStatus("Ошибка загрузки состояния");
     }
   }
 
@@ -1183,7 +1243,7 @@ function App() {
         : await fetchCatalog(REDUX_JSON_URL);
 
       if (list.length === 0) {
-        throw new Error("Catalog is empty");
+        throw new Error("Каталог пустой");
       }
 
       setCategories(list);
@@ -1193,7 +1253,7 @@ function App() {
         const fallback = await fetchCatalog("/redux.example.json");
 
         if (fallback.length === 0) {
-          throw new Error("Local catalog is empty");
+          throw new Error("Локальный каталог пустой");
         }
 
         setCategories(fallback);
@@ -1219,7 +1279,7 @@ function App() {
 
   function openAdmin() {
     if (!canUseAdmin(adminMe)) {
-      setStatus("Admin доступен только owner/admin");
+      setStatus("Админ-панель доступна только владельцу или админу");
       return;
     }
 
@@ -1237,7 +1297,7 @@ function App() {
 
   function syncAdminFromCatalog() {
     setAdminCategories(categories.length > 0 ? cloneCatalog(categories) : [createAdminCategory()]);
-    setStatus("Admin catalog synced from current mods");
+    setStatus("Админ-каталог синхронизирован с текущими модами");
   }
 
   function updateAdminCategory(
@@ -1387,14 +1447,14 @@ function App() {
       const next = normalizeCatalog(JSON.parse(adminImportText));
 
       if (next.length === 0) {
-        setStatus("Admin import failed: no categories or mods found");
+        setStatus("Импорт не удался: категории или моды не найдены");
         return;
       }
 
       setAdminCategories(next);
-      setStatus("Admin catalog imported");
+      setStatus("Админ-каталог импортирован");
     } catch (err) {
-      setStatus("Admin import failed: " + String(err));
+      setStatus("Импорт админ-каталога не удался: " + String(err));
     }
   }
 
@@ -1402,15 +1462,15 @@ function App() {
     setCategories(cloneCatalog(adminCategories));
     setSelectedCategory(null);
     setPage("catalog");
-    setStatus("Admin catalog loaded into preview");
+    setStatus("Админ-каталог открыт в предпросмотре");
   }
 
   async function copyText(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus(`${label} copied`);
+      setStatus(`${label} скопирован`);
     } catch {
-      setStatus(`${label} is ready in the text box`);
+      setStatus(`${label} готов в поле`);
     }
   }
 
@@ -1419,7 +1479,7 @@ function App() {
     setSearchText(mod.name);
     setFilterMode("all");
     setPage("category");
-    setStatus(`${mod.name} ready to install`);
+    setStatus(`${mod.name} готов к установке`);
   }
 
   function moveHeroMotion(event: React.PointerEvent<HTMLElement>) {
@@ -1446,9 +1506,9 @@ function App() {
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
 
       pointer.root.style.setProperty("--hero-proximity", easedProximity.toFixed(3));
-      pointer.root.style.setProperty("--hero-rail-up-duration", `${28 + easedProximity * 34}s`);
-      pointer.root.style.setProperty("--hero-rail-down-duration", `${32 + easedProximity * 36}s`);
-      pointer.root.style.setProperty("--hero-spin-duration", `${10 + easedProximity * 26}s`);
+      pointer.root.style.setProperty("--hero-rail-up-duration", `${16 + easedProximity * 46}s`);
+      pointer.root.style.setProperty("--hero-rail-down-duration", `${18 + easedProximity * 50}s`);
+      pointer.root.style.setProperty("--hero-spin-duration", `${7 + easedProximity * 30}s`);
       const shake = easedProximity * 2.4;
 
       pointer.root.style.setProperty("--hero-shake", `${shake}px`);
@@ -1464,9 +1524,9 @@ function App() {
 
     heroMotionPointer.current = null;
     event.currentTarget.style.setProperty("--hero-proximity", "0");
-    event.currentTarget.style.setProperty("--hero-rail-up-duration", "28s");
-    event.currentTarget.style.setProperty("--hero-rail-down-duration", "32s");
-    event.currentTarget.style.setProperty("--hero-spin-duration", "10s");
+    event.currentTarget.style.setProperty("--hero-rail-up-duration", "16s");
+    event.currentTarget.style.setProperty("--hero-rail-down-duration", "18s");
+    event.currentTarget.style.setProperty("--hero-spin-duration", "7s");
     event.currentTarget.style.setProperty("--hero-shake", "0px");
     event.currentTarget.style.setProperty("--hero-shake-neg", "0px");
   }
@@ -1479,6 +1539,16 @@ function App() {
     resetTiltedCardVars(event.currentTarget);
   }
 
+  function captureHeroCardPointer(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Some preview browsers do not support pointer capture on animated buttons.
+    }
+  }
+
   async function adminRequest<T>(
     path: string,
     init: RequestInit = {},
@@ -1488,7 +1558,7 @@ function App() {
     const requestToken = (connection?.token || adminToken).trim();
 
     if (!cleanBase || cleanBase.includes("YOUR_SUBDOMAIN")) {
-      throw new Error("Set Admin API URL first");
+      throw new Error("Сначала укажи адрес админ-API");
     }
 
     const response = await fetch(`${cleanBase}${path}`, {
@@ -1504,7 +1574,7 @@ function App() {
     const data = text ? JSON.parse(text) : null;
 
     if (!response.ok) {
-      throw new Error(data?.error || `Admin API failed: ${response.status}`);
+      throw new Error(data?.error || `Админ-API ответил ошибкой: ${response.status}`);
     }
 
     return data as T;
@@ -1516,14 +1586,14 @@ function App() {
     window.localStorage.setItem(ADMIN_API_URL_KEY, cleanUrl);
     setAdminApiUrl(cleanUrl);
 
-    setStatus("Admin API settings saved");
+    setStatus("Настройки админ-API сохранены");
   }
 
   async function openDiscordLogin() {
     const cleanBase = (adminApiUrl || DEFAULT_ADMIN_API_URL).trim().replace(/\/+$/, "");
 
     if (!cleanBase || cleanBase.includes("YOUR_SUBDOMAIN")) {
-      setStatus("Set Admin API URL first");
+      setStatus("Сначала укажи адрес админ-API");
       return;
     }
 
@@ -1536,9 +1606,9 @@ function App() {
         window.location.href = loginUrl;
       }
 
-      setStatus("Discord login opened. After authorization the app will open automatically.");
+      setStatus("Открыл вход через Discord. После авторизации приложение откроется само.");
     } catch (err) {
-      setStatus("Discord login open failed: " + String(err));
+      setStatus("Не удалось открыть вход через Discord: " + String(err));
     }
   }
 
@@ -1581,7 +1651,7 @@ function App() {
       const token = connection?.token?.trim() || (await resolveDiscordSessionToken());
 
       if (!token) {
-        setStatus("Login Discord first, then press Continue.");
+        setStatus("Сначала войди через Discord, потом нажми Продолжить.");
         return;
       }
 
@@ -1600,7 +1670,7 @@ function App() {
         { apiUrl: cleanUrl, token },
       );
       setAdminMe(result.user);
-      setStatus(`Logged as ${result.user.role}`);
+      setStatus(`Вход выполнен: ${getRoleTitle(result.user.role)}`);
 
       if (result.user.role === "owner") {
         const admins = await adminRequest<AdminStateDocument>(
@@ -1613,7 +1683,7 @@ function App() {
         setBackendAdmins(admins);
       }
     } catch (err) {
-      setStatus("Admin login failed: " + String(err));
+      setStatus("Вход в админ-панель не удался: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1638,7 +1708,7 @@ function App() {
     setBackendAdmins(null);
     setPage("home");
     setSelectedCategory(null);
-    setStatus("Logged out");
+    setStatus("Выход выполнен");
   }
 
   async function pullCatalogFromAdminApi() {
@@ -1646,9 +1716,9 @@ function App() {
       setLoading(true);
       const catalog = await adminRequest<CatalogDocument>("/api/catalog");
       setAdminCategories(cloneCatalog(normalizeCatalog(catalog)));
-      setStatus("Catalog pulled from GitHub via Admin API");
+      setStatus("Каталог загружен через админ-API");
     } catch (err) {
-      setStatus("Catalog pull failed: " + String(err));
+      setStatus("Загрузка каталога не удалась: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1661,13 +1731,13 @@ function App() {
       await adminRequest("/api/catalog", {
         body: JSON.stringify({
           catalog,
-          message: `Update redux catalog (${catalog.categories.length} categories)`,
+          message: `Обновление каталога модов (${catalog.categories.length} категорий)`,
         }),
         method: "PUT",
       });
-      setStatus("redux.json published to GitHub");
+      setStatus("redux.json опубликован в GitHub");
     } catch (err) {
-      setStatus("Catalog publish failed: " + String(err));
+      setStatus("Публикация каталога не удалась: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1679,13 +1749,13 @@ function App() {
       await adminRequest("/api/latest", {
         body: JSON.stringify({
           manifest: JSON.parse(releaseManifestJson),
-          message: `Update latest.json ${releaseVersion}`,
+          message: `Обновление latest.json ${releaseVersion}`,
         }),
         method: "PUT",
       });
-      setStatus("latest.json published to GitHub");
+      setStatus("latest.json опубликован в GitHub");
     } catch (err) {
-      setStatus("latest.json publish failed: " + String(err));
+      setStatus("Публикация latest.json не удалась: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1706,13 +1776,13 @@ function App() {
       }>("/api/github-token-check", { method: "POST" });
 
       if (result.ok) {
-        setStatus(`GitHub token OK: ${result.repo} ${result.writePath}`);
+        setStatus(`Токен GitHub работает: ${result.repo} ${result.writePath}`);
         return;
       }
 
-      setStatus(`GitHub token check failed: ${result.error || "unknown error"}`);
+      setStatus(`Проверка токена GitHub не удалась: ${result.error || "неизвестная ошибка"}`);
     } catch (err) {
-      setStatus("GitHub token check failed: " + String(err));
+      setStatus("Проверка токена GitHub не удалась: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1731,9 +1801,9 @@ function App() {
       setBackendAdmins(admins);
       setNewAdminDiscordId("");
       setNewAdminLabel("");
-      setStatus("Admin added");
+      setStatus("Админ добавлен");
     } catch (err) {
-      setStatus("Add admin failed: " + String(err));
+      setStatus("Добавить админа не удалось: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1749,9 +1819,9 @@ function App() {
         },
       );
       setBackendAdmins(admins);
-      setStatus("Admin removed");
+      setStatus("Админ удалён");
     } catch (err) {
-      setStatus("Remove admin failed: " + String(err));
+      setStatus("Удалить админа не удалось: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -1760,7 +1830,7 @@ function App() {
   async function checkForAppUpdate(silent = false): Promise<Update | null> {
     if (!isTauriRuntime()) {
       if (!silent) {
-        setStatus("Update check works only in Tauri app");
+        setStatus("Проверка обновлений работает только в Tauri-приложении");
       }
 
       return null;
@@ -1769,7 +1839,7 @@ function App() {
     try {
       if (!silent) {
         setLoading(true);
-        setStatus("Checking for app update...");
+        setStatus("Проверяю обновление приложения...");
       }
 
       const update = await check();
@@ -1778,13 +1848,13 @@ function App() {
       if (update) {
         setStatus(`Доступно обновление ${update.version}`);
       } else if (!silent) {
-        setStatus("App is up to date");
+        setStatus("Приложение уже обновлено");
       }
 
       return update;
     } catch (err) {
       if (!silent) {
-        setStatus("Update check failed: " + String(err));
+        setStatus("Проверка обновления не удалась: " + String(err));
       }
 
       return null;
@@ -1799,7 +1869,7 @@ function App() {
     try {
       setLoading(true);
       setProgress(0);
-      setInstallStep("Checking update");
+      setInstallStep("Проверка обновления");
       setStatus("Проверка обновления...");
 
       const update = tauriUpdate ?? (await checkForAppUpdate(true));
@@ -1812,7 +1882,7 @@ function App() {
 
       setTauriUpdate(update);
       setStatus(`Скачивание обновления ${update.version}...`);
-      setInstallStep("Downloading update");
+      setInstallStep("Скачивание обновления");
 
       let totalBytes = 0;
       let downloadedBytes = 0;
@@ -1822,7 +1892,7 @@ function App() {
           totalBytes = event.data.contentLength ?? 0;
           downloadedBytes = 0;
           setProgress(0);
-          setInstallStep("Downloading update");
+          setInstallStep("Скачивание обновления");
           setStatus(`Скачивание обновления ${update.version}...`);
         }
 
@@ -1839,7 +1909,7 @@ function App() {
 
         if (event.event === "Finished") {
           setProgress(100);
-          setInstallStep("Installing update");
+          setInstallStep("Установка обновления");
           setStatus("Обновление скачано, установка...");
         }
       };
@@ -1847,7 +1917,7 @@ function App() {
       await update.downloadAndInstall(onDownloadEvent);
 
       setStatus("Перезапуск...");
-      setInstallStep("Restarting");
+      setInstallStep("Перезапуск");
       await relaunch();
     } catch (err) {
       setStatus("Ошибка установки обновления: " + String(err));
@@ -1896,7 +1966,7 @@ function App() {
       const state = { ...readLocalState(), gtaPath: cleanPath };
       writeLocalState(state);
       setGtaPath(cleanPath);
-      setStatus("Путь GTA сохранён в preview-режиме");
+      setStatus("Путь GTA сохранён в режиме предпросмотра");
       return;
     }
 
@@ -1913,7 +1983,7 @@ function App() {
     const cleanPath = path.trim();
 
     if (!cleanPath) {
-      setStatus("Укажи папку для system files");
+      setStatus("Укажи папку системных файлов");
       return;
     }
 
@@ -1921,7 +1991,7 @@ function App() {
       const state = { ...readLocalState(), systemPath: cleanPath };
       writeLocalState(state);
       setSystemPath(cleanPath);
-      setStatus("System path сохранён в preview-режиме");
+      setStatus("Путь системных файлов сохранён в режиме предпросмотра");
       return;
     }
 
@@ -1931,7 +2001,7 @@ function App() {
 
     setSystemPath(state.systemPath || cleanPath);
     setInstalledRedux(state.installedRedux || {});
-    setStatus("System path сохранён");
+    setStatus("Путь системных файлов сохранён");
   }
 
   async function saveManualSettings() {
@@ -1971,7 +2041,7 @@ function App() {
       try {
         await persistSystemPath(folder);
       } catch (err) {
-        setStatus("Ошибка system path: " + String(err));
+        setStatus("Ошибка пути системных файлов: " + String(err));
       }
     }
   }
@@ -1991,7 +2061,7 @@ function App() {
       try {
         await persistGtaPath(folder);
       } catch (err) {
-        setStatus("Ошибка GTA path: " + String(err));
+        setStatus("Ошибка пути GTA: " + String(err));
       }
     }
   }
@@ -2029,7 +2099,7 @@ function App() {
           installedRedux: nextInstalled,
         });
         setProgress(100);
-        setStatus(`${item.name} отмечен как установлен в preview-режиме`);
+        setStatus(`${item.name} отмечен как установлен в режиме предпросмотра`);
         return;
       }
 
@@ -2069,7 +2139,7 @@ function App() {
           systemPath,
           installedRedux: nextInstalled,
         });
-        setStatus(`${item.name} удалён из preview-режима`);
+        setStatus(`${item.name} удалён из режима предпросмотра`);
         return;
       }
 
@@ -2079,7 +2149,7 @@ function App() {
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus("Backup восстановлен");
+      setStatus("Резервная копия восстановлена");
     } catch (err) {
       setStatus("Ошибка восстановления: " + String(err));
     } finally {
@@ -2110,7 +2180,7 @@ function App() {
     }
 
     if (!isTauriRuntime()) {
-      setStatus("Unlock RPF доступен только в приложении Tauri");
+      setStatus("Разблокировка RPF доступна только в приложении Tauri");
       return;
     }
 
@@ -2123,7 +2193,7 @@ function App() {
 
       setStatus(result);
     } catch (err) {
-      setStatus("Ошибка unlock: " + String(err));
+      setStatus("Ошибка разблокировки: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -2152,7 +2222,7 @@ function App() {
     }
 
     if (!isTauriRuntime()) {
-      setStatus("RPF Explorer доступен только в приложении Tauri");
+      setStatus("Архивы RPF доступны только в приложении Tauri");
       return;
     }
 
@@ -2166,7 +2236,7 @@ function App() {
       setRpfEntries(result);
       setStatus("RPF загружен");
     } catch (err) {
-      setStatus("Ошибка RPF Explorer: " + String(err));
+      setStatus("Ошибка архива RPF: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -2194,7 +2264,7 @@ function App() {
     }
 
     if (!isTauriRuntime()) {
-      setStatus("Replace RPF доступен только в приложении Tauri");
+      setStatus("Замена RPF доступна только в приложении Tauri");
       return;
     }
 
@@ -2209,7 +2279,7 @@ function App() {
 
       setStatus(result || "Файл заменён");
     } catch (err) {
-      setStatus("Ошибка replace: " + String(err));
+      setStatus("Ошибка замены: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -2235,11 +2305,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#09090b] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_16%_36%,rgba(255,255,255,.22),transparent_25%),radial-gradient(circle_at_78%_18%,rgba(255,255,255,.16),transparent_23%),linear-gradient(135deg,#151517_0%,#050506_46%,#1b1b1f_100%)]" />
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:76px_76px] opacity-45" />
-      <div className="pointer-events-none fixed -left-16 top-40 h-64 w-64 rotate-12 border border-white/18 shadow-[0_0_60px_rgba(255,255,255,.10)]" />
-      <div className="pointer-events-none fixed right-24 top-24 h-40 w-40 rotate-45 border border-white/18 shadow-[0_0_50px_rgba(255,255,255,.10)]" />
+    <div className="app-shell min-h-screen overflow-hidden bg-[#07070a] text-white">
+      <div className="app-bg app-bg--base" />
+      <div className="app-bg app-bg--grid" />
+      <div className="app-wire app-wire--left" />
+      <div className="app-wire app-wire--right" />
 
       <header className="relative z-20 h-[88px] border-b border-white/15 bg-black/45 shadow-[0_18px_70px_rgba(0,0,0,.38)] backdrop-blur-2xl">
         <div className="mx-auto grid h-full max-w-[1600px] grid-cols-[160px_1fr_250px] items-center gap-6 px-7">
@@ -2255,11 +2325,11 @@ function App() {
 
           <div className="mx-auto flex h-14 items-center gap-2 rounded-[28px] border border-white/10 bg-white/[.045] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-2xl">
             <TopButton onClick={() => setPage("home")}>Главная</TopButton>
-            <TopButton onClick={openCatalog}>Mods</TopButton>
-            <TopButton onClick={() => setPage("rpf")}>RPF Unlocker</TopButton>
-            <TopButton onClick={() => setPage("rpfExplorer")}>RPF Explorer</TopButton>
-            <TopButton onClick={() => setPage("settings")}>Settings</TopButton>
-            {canOpenAdmin && <TopButton onClick={openAdmin}>Admin</TopButton>}
+            <TopButton onClick={openCatalog}>Моды</TopButton>
+            <TopButton onClick={() => setPage("rpf")}>Разблокировка RPF</TopButton>
+            <TopButton onClick={() => setPage("rpfExplorer")}>Архивы RPF</TopButton>
+            <TopButton onClick={() => setPage("settings")}>Настройки</TopButton>
+            {canOpenAdmin && <TopButton onClick={openAdmin}>Админ</TopButton>}
           </div>
 
           <div className="flex items-center justify-end gap-3">
@@ -2330,7 +2400,7 @@ function App() {
                   Что делать
                 </div>
                 <div className="mt-2 text-white/65">
-                  Нажми кнопку, app скачает обновление и запустит установщик.
+                  Нажми кнопку, приложение скачает обновление и запустит установщик.
                 </div>
               </div>
             </div>
@@ -2361,39 +2431,12 @@ function App() {
             <div className="home-brand-panel relative z-10 pl-10">
               <div className="home-kicker mb-7 inline-flex items-center gap-3 rounded-full px-5 py-2 text-xs font-black uppercase tracking-[.25em] text-white/75">
                 <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_16px_rgba(255,255,255,.85)]" />
-                THE BEST CATALOG OF MODIFICATIONS
+                ЛУЧШИЙ КАТАЛОГ МОДИФИКАЦИЙ
               </div>
 
               <div className="home-logo-stack relative inline-block">
                 <div className="home-brand-aura" />
-                <img
-                  src="/hardy-h.png"
-                  aria-hidden="true"
-                  className="home-logo-depth home-logo-depth--back mx-auto h-[300px] w-[300px] object-contain"
-                />
-                <img
-                  src="/hardy-h.png"
-                  aria-hidden="true"
-                  className="home-logo-depth home-logo-depth--front mx-auto h-[300px] w-[300px] object-contain"
-                />
-                <img
-                  src="/hardy-h.png"
-                  className="home-logo mx-auto h-[300px] w-[300px] object-contain opacity-95"
-                />
-                <div className="home-title -mt-16 text-center">
-                  <div
-                    className="home-title-line home-title-line--main text-[76px] font-black leading-none text-white"
-                    data-text="HARDY"
-                  >
-                    HARDY
-                  </div>
-                  <div
-                    className="home-title-line home-title-line--sub text-[74px] font-black leading-none"
-                    data-text="MODS"
-                  >
-                    MODS
-                  </div>
-                </div>
+                <BrandWordmark variant="hero" />
               </div>
 
               <div className="mt-10 flex gap-5">
@@ -2428,8 +2471,12 @@ function App() {
                         <button
                           key={`${lane}-${category.id}-${mod.id}-${index}`}
                           type="button"
+                          onPointerDown={captureHeroCardPointer}
                           onPointerMove={moveHeroCardLight}
                           onPointerLeave={resetHeroCardLight}
+                          onMouseDown={(event) => {
+                            if (event.button === 0) openFeaturedMod(category, mod);
+                          }}
                           onClick={() => openFeaturedMod(category, mod)}
                           className={`hero-strip-card ${blurClass}`}
                           style={
@@ -2450,7 +2497,7 @@ function App() {
                               <div className="hero-strip-card-copy absolute bottom-4 left-4 right-4 text-left">
                                 <div className="hero-strip-card-badge mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/55 px-3 py-1 text-[11px] font-black uppercase tracking-[.16em] text-white/75 backdrop-blur-md">
                                   <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)]" />
-                                  {category.title || "Redux"}
+                                  {getCategoryTitle(category)}
                                 </div>
                                 <div className="hero-strip-card-title font-black uppercase text-white drop-shadow-[0_2px_14px_rgba(0,0,0,.9)]">
                                   {mod.name}
@@ -2474,7 +2521,7 @@ function App() {
               <div className="pl-10">
                 <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs font-black uppercase tracking-[.25em]">
                   <span className="h-2 w-2 rounded-full bg-purple-500" />
-                  HARDY MODS
+                  ХАРДИ МОДС
                 </div>
 
                 <div className="leading-none">
@@ -2485,28 +2532,28 @@ function App() {
 
                 <div className="mt-12 grid grid-cols-2 gap-6">
                   <DashboardCard
-                    title="Mods"
+                    title="Моды"
                     description="Каталог модов"
                     icon={<Package />}
                     onClick={openCatalog}
                   />
 
                   <DashboardCard
-                    title="RPF Unlocker"
-                    description="Unlock RPF"
+                    title="Разблокировка RPF"
+                    description="Открыть архив RPF"
                     icon={<FileArchive />}
                     onClick={() => setPage("rpf")}
                   />
 
                   <DashboardCard
-                    title="RPF Explorer"
-                    description="OpenIV style"
+                    title="Архивы RPF"
+                    description="Просмотр и замена файлов"
                     icon={<FolderOpen />}
                     onClick={() => setPage("rpfExplorer")}
                   />
 
                   <DashboardCard
-                    title="Settings"
+                    title="Настройки"
                     description="Настройки"
                     icon={<Settings />}
                     onClick={() => setPage("settings")}
@@ -2514,8 +2561,8 @@ function App() {
 
                   {canOpenAdmin && (
                     <DashboardCard
-                      title="Admin"
-                      description="Catalog and update tools"
+                      title="Админ"
+                      description="Каталог и обновления"
                       icon={<FileJson />}
                       onClick={openAdmin}
                     />
@@ -2539,17 +2586,22 @@ function App() {
 
             <div className="catalog-hero mb-6">
               <div>
-                <div className="catalog-kicker">Hardy collection</div>
+                <div className="catalog-kicker">Коллекция Hardy</div>
                 <h2 className="mt-3 text-5xl font-black">Каталог модов</h2>
                 <p className="mt-3 max-w-2xl text-white/55">
-                  Glass категории, neon glow и быстрый доступ к модам без пустого экрана.
+                  Стеклянные категории, неоновое свечение и быстрый доступ к модам без пустого
+                  экрана.
                 </p>
               </div>
 
               <div className="catalog-stats">
-                <MiniStat label="Categories" value={String(categories.length)} />
-                <MiniStat label="Mods" value={String(catalogModCount)} />
-                <MiniStat label="Installed" value={String(catalogInstalledCount)} tone="success" />
+                <MiniStat label="Категории" value={String(categories.length)} />
+                <MiniStat label="Моды" value={String(catalogModCount)} />
+                <MiniStat
+                  label="Установлено"
+                  value={String(catalogInstalledCount)}
+                  tone="success"
+                />
               </div>
             </div>
 
@@ -2558,25 +2610,25 @@ function App() {
 
               <div className="flex flex-wrap gap-3">
                 <FilterButton active={filterMode === "all"} onClick={() => setFilterMode("all")}>
-                  All
+                  Все
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "installed"}
                   onClick={() => setFilterMode("installed")}
                 >
-                  Installed
+                  Установленные
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "notInstalled"}
                   onClick={() => setFilterMode("notInstalled")}
                 >
-                  New
+                  Новые
                 </FilterButton>
 
                 <FilterButton active={false} onClick={() => void loadCategories()}>
-                  Refresh
+                  Обновить
                 </FilterButton>
               </div>
             </div>
@@ -2626,11 +2678,11 @@ function App() {
 
                       <div className="category-card-body">
                         <div className="category-card-meta">
-                          <span>{category.mods.length} mods</span>
-                          <span>{installedCount} installed</span>
+                          <span>{category.mods.length} модов</span>
+                          <span>{installedCount} установлено</span>
                         </div>
                         <h3>{category.title}</h3>
-                        <p>{category.description || "Fresh mods collection for Hardy MODS."}</p>
+                        <p>{category.description || "Свежая подборка модов для Hardy MODS."}</p>
                         <div className="category-card-action">Открыть</div>
                       </div>
                     </button>
@@ -2648,8 +2700,8 @@ function App() {
                   список без перезапуска приложения.
                 </p>
                 <div className="mt-5 flex justify-center gap-3">
-                  <PrimaryButton onClick={() => void loadCategories()}>Refresh</PrimaryButton>
-                  <PurpleButton onClick={() => setSearchText("")}>Clear search</PurpleButton>
+                  <PrimaryButton onClick={() => void loadCategories()}>Обновить</PrimaryButton>
+                  <PurpleButton onClick={() => setSearchText("")}>Очистить поиск</PurpleButton>
                 </div>
               </div>
             )}
@@ -2667,21 +2719,21 @@ function App() {
                 <SearchBox value={searchText} onChange={setSearchText} />
 
                 <FilterButton active={filterMode === "all"} onClick={() => setFilterMode("all")}>
-                  All
+                  Все
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "installed"}
                   onClick={() => setFilterMode("installed")}
                 >
-                  Installed
+                  Установленные
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "notInstalled"}
                   onClick={() => setFilterMode("notInstalled")}
                 >
-                  New
+                  Новые
                 </FilterButton>
               </div>
             </div>
@@ -2707,7 +2759,7 @@ function App() {
                       <p className="mt-4 text-white/55">{category.description}</p>
 
                       <div className="mt-4 text-sm text-white/40">
-                        {category.mods.length} mods · {installedCount} installed
+                        {category.mods.length} модов / {installedCount} установлено
                       </div>
 
                       <button
@@ -2739,7 +2791,7 @@ function App() {
 
             <div className="catalog-hero mb-8">
               <div>
-                <div className="catalog-kicker">Selected category</div>
+                <div className="catalog-kicker">Выбранная категория</div>
                 <h2 className="text-5xl font-black">{selectedCategory.title}</h2>
 
                 <p className="mt-3 text-white/45">{selectedCategory.description}</p>
@@ -2749,21 +2801,21 @@ function App() {
                 <SearchBox value={searchText} onChange={setSearchText} />
 
                 <FilterButton active={filterMode === "all"} onClick={() => setFilterMode("all")}>
-                  All
+                  Все
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "installed"}
                   onClick={() => setFilterMode("installed")}
                 >
-                  Installed
+                  Установленные
                 </FilterButton>
 
                 <FilterButton
                   active={filterMode === "notInstalled"}
                   onClick={() => setFilterMode("notInstalled")}
                 >
-                  New
+                  Новые
                 </FilterButton>
               </div>
             </div>
@@ -2776,8 +2828,8 @@ function App() {
                 <h3>Моды не найдены</h3>
                 <p>Сбрось поиск или фильтр, и карточки сразу появятся обратно.</p>
                 <div className="mt-5 flex justify-center gap-3">
-                  <PrimaryButton onClick={() => setSearchText("")}>Clear search</PrimaryButton>
-                  <PurpleButton onClick={() => setFilterMode("all")}>All mods</PurpleButton>
+                  <PrimaryButton onClick={() => setSearchText("")}>Очистить поиск</PrimaryButton>
+                  <PurpleButton onClick={() => setFilterMode("all")}>Все моды</PurpleButton>
                 </div>
               </div>
             ) : (
@@ -2802,21 +2854,25 @@ function App() {
         )}
 
         {page === "rpf" && (
-          <ToolPanel title="RPF Unlocker" icon={<FileArchive />} onBack={() => setPage("home")}>
+          <ToolPanel
+            title="Разблокировка RPF"
+            icon={<FileArchive />}
+            onBack={() => setPage("home")}
+          >
             <PathBox text={rpfPath || "RPF файл не выбран"} />
 
             <div className="flex gap-4">
               <PrimaryButton onClick={chooseRpfFile}>Выбрать .rpf</PrimaryButton>
 
               <PurpleButton disabled={!rpfPath} onClick={unlockRpf}>
-                Unlock
+                Разблокировать
               </PurpleButton>
             </div>
           </ToolPanel>
         )}
 
         {page === "rpfExplorer" && (
-          <ToolPanel title="RPF Explorer" icon={<FolderOpen />} onBack={() => setPage("home")}>
+          <ToolPanel title="Архивы RPF" icon={<FolderOpen />} onBack={() => setPage("home")}>
             <div className="mb-6 flex gap-4">
               <PrimaryButton onClick={chooseRpfExplorerFile}>Выбрать RPF</PrimaryButton>
 
@@ -2854,7 +2910,7 @@ function App() {
                     disabled={!internalPath || !replaceFilePath}
                     onClick={replaceRpfFile}
                   >
-                    Replace
+                    Заменить
                   </PurpleButton>
                 </div>
               </div>
@@ -2863,29 +2919,29 @@ function App() {
         )}
 
         {page === "admin" && (
-          <ToolPanel title="Admin" icon={<FileJson />} onBack={() => setPage("home")}>
+          <ToolPanel title="Панель админа" icon={<FileJson />} onBack={() => setPage("home")}>
             <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] gap-6">
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <PrimaryButton onClick={syncAdminFromCatalog}>
                     <RefreshCw size={18} />
-                    Sync current
+                    Синхронизировать
                   </PrimaryButton>
                   <PurpleButton onClick={addAdminCategory}>
                     <Plus size={18} />
-                    Category
+                    Категория
                   </PurpleButton>
                   <PrimaryButton onClick={useAdminCatalogInPreview}>
                     <Package size={18} />
-                    Preview
+                    Предпросмотр
                   </PrimaryButton>
                   <PrimaryButton onClick={() => copyText(adminCatalogJson, "redux.json")}>
                     <Clipboard size={18} />
-                    Copy JSON
+                    Копировать JSON
                   </PrimaryButton>
                   <PurpleButton onClick={() => downloadTextFile("redux.json", adminCatalogJson)}>
                     <Download size={18} />
-                    Export
+                    Экспорт
                   </PurpleButton>
                 </div>
 
@@ -2898,14 +2954,14 @@ function App() {
                       <div>
                         <div className="text-xl font-black">{category.title || category.id}</div>
                         <div className="text-sm text-white/40">
-                          {category.mods.length} mods in category
+                          {category.mods.length} модов в категории
                         </div>
                       </div>
 
                       <div className="flex gap-2">
                         <PrimaryButton onClick={() => addAdminMod(category.id)}>
                           <Plus size={18} />
-                          Mod
+                          Мод
                         </PrimaryButton>
                         <button
                           type="button"
@@ -2919,22 +2975,22 @@ function App() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <AdminField
-                        label="Category ID"
+                        label="ID категории"
                         value={category.id}
                         onChange={(value) => updateAdminCategory(category.id, "id", value)}
                       />
                       <AdminField
-                        label="Title"
+                        label="Название"
                         value={category.title}
                         onChange={(value) => updateAdminCategory(category.id, "title", value)}
                       />
                       <AdminField
-                        label="Image URL"
+                        label="Ссылка на картинку"
                         value={category.image || ""}
                         onChange={(value) => updateAdminCategory(category.id, "image", value)}
                       />
                       <AdminField
-                        label="Description"
+                        label="Описание"
                         value={category.description}
                         onChange={(value) => updateAdminCategory(category.id, "description", value)}
                       />
@@ -2956,40 +3012,40 @@ function App() {
 
                           <div className="grid grid-cols-2 gap-4">
                             <AdminField
-                              label="Mod ID"
+                              label="ID мода"
                               value={mod.id}
                               onChange={(value) => updateAdminMod(category.id, mod.id, "id", value)}
                             />
                             <AdminField
-                              label="Name"
+                              label="Название"
                               value={mod.name}
                               onChange={(value) =>
                                 updateAdminMod(category.id, mod.id, "name", value)
                               }
                             />
                             <AdminField
-                              label="Version"
+                              label="Версия"
                               value={mod.version}
                               onChange={(value) =>
                                 updateAdminMod(category.id, mod.id, "version", value)
                               }
                             />
                             <AdminField
-                              label="Size"
+                              label="Размер"
                               value={mod.size}
                               onChange={(value) =>
                                 updateAdminMod(category.id, mod.id, "size", value)
                               }
                             />
                             <AdminField
-                              label="Image URL"
+                              label="Ссылка на картинку"
                               value={mod.image || ""}
                               onChange={(value) =>
                                 updateAdminMod(category.id, mod.id, "image", value)
                               }
                             />
                             <AdminField
-                              label="Download URL"
+                              label="Ссылка на скачивание"
                               value={mod.downloadUrl}
                               onChange={(value) =>
                                 updateAdminMod(category.id, mod.id, "downloadUrl", value)
@@ -2998,7 +3054,7 @@ function App() {
                           </div>
 
                           <AdminField
-                            label="Description"
+                            label="Описание"
                             value={mod.description}
                             onChange={(value) =>
                               updateAdminMod(category.id, mod.id, "description", value)
@@ -3009,21 +3065,21 @@ function App() {
                           <div className="mt-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
                             <div className="mb-4 flex items-center justify-between gap-3">
                               <div>
-                                <div className="font-black">RPF patches</div>
+                                <div className="font-black">Замены RPF</div>
                                 <div className="text-xs text-white/45">
-                                  Path can start with update/update.rpf; app also tries
-                                  mods/update/update.rpf
+                                  Путь может начинаться с update/update.rpf; приложение также
+                                  проверяет mods/update/update.rpf
                                 </div>
                               </div>
                               <PrimaryButton onClick={() => addAdminRpfPatch(category.id, mod.id)}>
                                 <Plus size={18} />
-                                RPF patch
+                                Замена RPF
                               </PrimaryButton>
                             </div>
 
                             {(mod.rpfPatches || []).length === 0 && (
                               <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
-                                No RPF patches. This mod will copy normal files from the zip.
+                                Замен RPF нет. Мод скопирует обычные файлы из архива.
                               </div>
                             )}
 
@@ -3035,7 +3091,7 @@ function App() {
                                 >
                                   <div className="mb-3 flex items-center justify-between gap-3">
                                     <div className="text-sm font-black">
-                                      Patch #{patchIndex + 1}
+                                      Замена #{patchIndex + 1}
                                     </div>
                                     <button
                                       type="button"
@@ -3050,7 +3106,7 @@ function App() {
 
                                   <div className="grid grid-cols-3 gap-3">
                                     <AdminField
-                                      label="RPF path"
+                                      label="Путь RPF"
                                       value={patch.rpfPath}
                                       onChange={(value) =>
                                         updateAdminRpfPatch(
@@ -3063,7 +3119,7 @@ function App() {
                                       }
                                     />
                                     <AdminField
-                                      label="Internal path"
+                                      label="Путь внутри архива"
                                       value={patch.internalPath}
                                       onChange={(value) =>
                                         updateAdminRpfPatch(
@@ -3076,7 +3132,7 @@ function App() {
                                       }
                                     />
                                     <AdminField
-                                      label="File in zip"
+                                      label="Файл в архиве"
                                       value={patch.file}
                                       onChange={(value) =>
                                         updateAdminRpfPatch(
@@ -3104,8 +3160,8 @@ function App() {
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-lg font-black">Discord Admin</div>
-                      <div className="text-sm text-white/40">Owner: 1452029134300774414</div>
+                      <div className="text-lg font-black">Админ Discord</div>
+                      <div className="text-sm text-white/40">Владелец: 1452029134300774414</div>
                     </div>
                     <div
                       className={`rounded-full px-3 py-1 text-xs font-black ${
@@ -3116,61 +3172,61 @@ function App() {
                             : "bg-white/10 text-white/50"
                       }`}
                     >
-                      {adminMe?.role || "not logged"}
+                      {getRoleTitle(adminMe?.role)}
                     </div>
                   </div>
 
                   {adminMe && (
                     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/60">
-                      Discord: {adminMe.username || "unknown"} · {adminMe.id}
+                      Discord: {adminMe.username || "без имени"} · {adminMe.id}
                     </div>
                   )}
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <PrimaryButton onClick={openDiscordLogin}>Login Discord</PrimaryButton>
+                    <PrimaryButton onClick={openDiscordLogin}>Войти через Discord</PrimaryButton>
                     <PurpleButton disabled={loading} onClick={loadAdminProfile}>
-                      Check session
+                      Проверить сессию
                     </PurpleButton>
                     <PrimaryButton
                       disabled={loading || !canPublishCatalog}
                       onClick={pullCatalogFromAdminApi}
                     >
-                      Pull redux.json
+                      Загрузить redux.json
                     </PrimaryButton>
                     <PurpleButton
                       disabled={loading || !canPublishCatalog}
                       onClick={publishCatalogToAdminApi}
                     >
-                      Publish redux.json
+                      Опубликовать redux.json
                     </PurpleButton>
                     <PurpleButton
                       disabled={loading || !canPublishLatest}
                       onClick={publishLatestToAdminApi}
                     >
-                      Publish latest.json
+                      Опубликовать latest.json
                     </PurpleButton>
                     <PrimaryButton
                       disabled={loading || adminMe?.role !== "owner"}
                       onClick={checkGithubToken}
                     >
-                      Check GitHub token
+                      Проверить токен GitHub
                     </PrimaryButton>
                   </div>
                 </div>
 
                 {adminMe?.role === "owner" && (
                   <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-                    <div className="mb-4 text-lg font-black">Admins</div>
+                    <div className="mb-4 text-lg font-black">Админы</div>
                     <div className="grid gap-4">
                       <AdminField
                         label="Discord ID"
                         value={newAdminDiscordId}
                         onChange={setNewAdminDiscordId}
                       />
-                      <AdminField label="Label" value={newAdminLabel} onChange={setNewAdminLabel} />
+                      <AdminField label="Метка" value={newAdminLabel} onChange={setNewAdminLabel} />
                       <PurpleButton disabled={loading} onClick={addBackendAdmin}>
                         <Plus size={18} />
-                        Add admin
+                        Добавить админа
                       </PurpleButton>
                     </div>
 
@@ -3182,7 +3238,7 @@ function App() {
                         >
                           <div>
                             <div className="font-mono text-sm">{admin.discordId}</div>
-                            <div className="text-xs text-white/40">{admin.label || "admin"}</div>
+                            <div className="text-xs text-white/40">{admin.label || "админ"}</div>
                           </div>
                           <button
                             type="button"
@@ -3195,7 +3251,7 @@ function App() {
                       ))}
                       {backendAdmins && backendAdmins.admins.length === 0 && (
                         <div className="rounded-2xl border border-white/10 p-3 text-sm text-white/40">
-                          No admins yet.
+                          Админов пока нет.
                         </div>
                       )}
                     </div>
@@ -3203,26 +3259,26 @@ function App() {
                 )}
 
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-                  <div className="mb-4 text-lg font-black">Import catalog</div>
+                  <div className="mb-4 text-lg font-black">Импорт каталога</div>
                   <textarea
                     value={adminImportText}
                     onChange={(event) => setAdminImportText(event.target.value)}
-                    placeholder="Paste redux.json here"
+                    placeholder="Вставь redux.json сюда"
                     className="h-40 w-full resize-none rounded-2xl border border-white/10 bg-black/35 p-4 font-mono text-xs outline-none"
                   />
                   <div className="mt-4 flex justify-end">
-                    <PurpleButton onClick={importAdminCatalog}>Import</PurpleButton>
+                    <PurpleButton onClick={importAdminCatalog}>Импорт</PurpleButton>
                   </div>
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
                   <div className="mb-4 text-lg font-black">redux.json</div>
                   <div className="mb-4 grid grid-cols-4 gap-3 text-sm">
-                    <MiniStat label="Schema" value="v1" />
-                    <MiniStat label="Categories" value={String(catalogStats.categoryCount)} />
-                    <MiniStat label="Mods" value={String(catalogStats.modCount)} />
+                    <MiniStat label="Схема" value="v1" />
+                    <MiniStat label="Категории" value={String(catalogStats.categoryCount)} />
+                    <MiniStat label="Моды" value={String(catalogStats.modCount)} />
                     <MiniStat
-                      label="Issues"
+                      label="Проблемы"
                       value={String(
                         catalogStats.missingDownloads + catalogStats.duplicateIds.length,
                       )}
@@ -3236,10 +3292,10 @@ function App() {
                   {(catalogStats.missingDownloads > 0 || catalogStats.duplicateIds.length > 0) && (
                     <div className="mb-4 rounded-2xl border border-yellow-400/25 bg-yellow-400/10 p-3 text-sm text-yellow-100">
                       {catalogStats.missingDownloads > 0 && (
-                        <div>{catalogStats.missingDownloads} mods without Download URL</div>
+                        <div>{catalogStats.missingDownloads} модов без ссылки на скачивание</div>
                       )}
                       {catalogStats.duplicateIds.length > 0 && (
-                        <div>Duplicate mod IDs: {catalogStats.duplicateIds.join(", ")}</div>
+                        <div>Повторяющиеся ID модов: {catalogStats.duplicateIds.join(", ")}</div>
                       )}
                     </div>
                   )}
@@ -3252,11 +3308,11 @@ function App() {
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
-                  <div className="mb-4 text-lg font-black">App update manifest</div>
+                  <div className="mb-4 text-lg font-black">Манифест обновления</div>
                   <div className="mb-4 flex flex-wrap gap-3">
                     <PrimaryButton onClick={() => checkForAppUpdate(false)}>
                       <RefreshCw size={18} />
-                      Check app update
+                      Проверить обновление
                     </PrimaryButton>
                     <PurpleButton disabled={loading} onClick={installTauriUpdate}>
                       <Download size={18} />
@@ -3265,14 +3321,18 @@ function App() {
                   </div>
                   <div className="grid gap-4">
                     <AdminField
-                      label="Version"
+                      label="Версия"
                       value={releaseVersion}
                       onChange={setReleaseVersion}
                     />
-                    <AdminField label="Notes" value={releaseNotes} onChange={setReleaseNotes} />
-                    <AdminField label="Installer URL" value={releaseUrl} onChange={setReleaseUrl} />
+                    <AdminField label="Заметки" value={releaseNotes} onChange={setReleaseNotes} />
                     <AdminField
-                      label="Signature"
+                      label="Ссылка на установщик"
+                      value={releaseUrl}
+                      onChange={setReleaseUrl}
+                    />
+                    <AdminField
+                      label="Подпись"
                       value={releaseSignature}
                       onChange={setReleaseSignature}
                       multiline
@@ -3289,25 +3349,27 @@ function App() {
                   <div className="mt-4 flex flex-wrap justify-end gap-3">
                     <PrimaryButton onClick={() => copyText(releaseManifestJson, "latest.json")}>
                       <Clipboard size={18} />
-                      Copy
+                      Копировать
                     </PrimaryButton>
                     <PurpleButton
                       onClick={() => downloadTextFile("latest.json", releaseManifestJson)}
                     >
                       <Download size={18} />
-                      Export
+                      Экспорт
                     </PurpleButton>
                   </div>
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/55">
-                  <div className="mb-3 text-lg font-black text-white">Release flow</div>
+                  <div className="mb-3 text-lg font-black text-white">Порядок релиза</div>
                   <div className="space-y-2">
-                    <div>1. Zip mod files relative to GTA V root.</div>
-                    <div>2. Upload zip to GitHub Release or data repo.</div>
-                    <div>3. Paste direct zip URL into Download URL.</div>
-                    <div>4. Export redux.json and upload it to the data repo.</div>
-                    <div>5. Build Tauri release, paste URL/signature, export latest.json.</div>
+                    <div>1. Упакуй файлы мода относительно корня GTA V.</div>
+                    <div>2. Загрузи архив в GitHub Release или репозиторий данных.</div>
+                    <div>3. Вставь прямую ссылку на архив в поле скачивания.</div>
+                    <div>4. Экспортируй redux.json и загрузи его в репозиторий данных.</div>
+                    <div>
+                      5. Собери релиз Tauri, вставь ссылку и подпись, затем экспортируй latest.json.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3319,7 +3381,7 @@ function App() {
           <ToolPanel title="Настройки" icon={<Settings />} onBack={() => setPage("home")}>
             <div className="mb-8">
               <div className="mb-3 text-sm font-black uppercase tracking-[.2em] text-white/35">
-                GTA V PATH
+                ПУТЬ К GTA V
               </div>
 
               <div className="grid grid-cols-[1fr_auto_auto] gap-4">
@@ -3338,7 +3400,7 @@ function App() {
 
             <div className="mb-8">
               <div className="mb-3 text-sm font-black uppercase tracking-[.2em] text-white/35">
-                SYSTEM FILES LOCATION
+                ПАПКА СИСТЕМНЫХ ФАЙЛОВ
               </div>
 
               <div className="grid grid-cols-[1fr_auto] gap-4">
@@ -3346,7 +3408,7 @@ function App() {
                   value={systemPath}
                   onChange={(e) => setSystemPath(e.target.value)}
                   className="rounded-2xl border border-white/10 bg-black/35 px-5 py-4 outline-none"
-                  placeholder="Папка downloads / backups / temp"
+                  placeholder="Папка загрузок, резервных копий и временных файлов"
                 />
 
                 <PrimaryButton onClick={chooseSystemFolder}>Выбрать папку</PrimaryButton>
@@ -3360,31 +3422,35 @@ function App() {
             </div>
 
             <div className="grid grid-cols-4 gap-6">
-              <SettingsCard icon={<FileText />} title="App Version" value={`v${APP_VERSION}`} />
+              <SettingsCard
+                icon={<FileText />}
+                title="Версия приложения"
+                value={`v${APP_VERSION}`}
+              />
 
               <SettingsCard
                 icon={<Gamepad2 />}
                 title="GTA V"
-                value={gtaPath ? "Configured" : "Missing"}
+                value={gtaPath ? "Настроено" : "Не найдено"}
               />
 
               <SettingsCard
                 icon={<Package />}
-                title="Installed Mods"
+                title="Установленные моды"
                 value={String(Object.keys(installedRedux).length)}
               />
 
               <SettingsCard
                 icon={<Download />}
-                title="System Files"
-                value={systemPath ? "Custom" : "AppData"}
+                title="Системные файлы"
+                value={systemPath ? "Выбрано" : "По умолчанию"}
               />
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <PrimaryButton onClick={() => checkForAppUpdate(false)}>
                 <RefreshCw size={18} />
-                Check app update
+                Проверить обновление
               </PrimaryButton>
               <PurpleButton disabled={loading} onClick={installTauriUpdate}>
                 <Download size={18} />
@@ -3574,7 +3640,7 @@ function DiscordLoginScreen({
       const easedProximity = proximity * proximity * (3 - 2 * proximity);
       const shake = easedProximity * 2;
 
-      pointer.root.style.setProperty("--login-motion-duration", `${12 + easedProximity * 18}s`);
+      pointer.root.style.setProperty("--login-motion-duration", `${8 + easedProximity * 28}s`);
       pointer.root.style.setProperty("--login-shake", `${shake}px`);
       pointer.root.style.setProperty("--login-shake-neg", `${-shake}px`);
     });
@@ -3595,17 +3661,17 @@ function DiscordLoginScreen({
     }
 
     loginMotionPointer.current = null;
-    event.currentTarget.style.setProperty("--login-motion-duration", "12s");
+    event.currentTarget.style.setProperty("--login-motion-duration", "8s");
     event.currentTarget.style.setProperty("--login-shake", "0px");
     event.currentTarget.style.setProperty("--login-shake-neg", "0px");
   }
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#09090b] text-white">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_22%_36%,rgba(255,255,255,.20),transparent_26%),radial-gradient(circle_at_78%_18%,rgba(124,58,237,.24),transparent_24%),linear-gradient(135deg,#17171a_0%,#050506_46%,#1f1f23_100%)]" />
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:76px_76px] opacity-40" />
-      <div className="pointer-events-none fixed -left-12 top-36 h-64 w-64 rotate-12 border border-white/16 shadow-[0_0_60px_rgba(255,255,255,.10)]" />
-      <div className="pointer-events-none fixed right-20 top-24 h-44 w-44 rotate-45 border border-white/16 shadow-[0_0_55px_rgba(168,85,247,.14)]" />
+    <div className="app-shell min-h-screen overflow-hidden bg-[#07070a] text-white">
+      <div className="app-bg app-bg--base" />
+      <div className="app-bg app-bg--grid" />
+      <div className="app-wire app-wire--left" />
+      <div className="app-wire app-wire--right" />
 
       <main
         className="discord-login-shell relative z-10 grid min-h-screen grid-cols-[minmax(430px,.82fr)_minmax(520px,1.18fr)] items-center gap-12 px-12 py-12"
@@ -3614,11 +3680,12 @@ function DiscordLoginScreen({
       >
         <div className="w-full max-w-[680px] rounded-[36px] border border-white/15 bg-black/52 p-8 shadow-[0_0_80px_rgba(255,255,255,.14)] backdrop-blur-2xl">
           <div className="mb-8 flex items-center gap-4">
-            <img src="/hardy-h.png" className="h-14 w-14 object-contain" />
+            <div className="login-panel-logo">
+              <BrandWordmark variant="mini" />
+            </div>
             <div>
-              <div className="text-3xl font-black">HARDY MODS</div>
               <div className="text-sm font-bold uppercase tracking-[.22em] text-white/35">
-                Discord login
+                Вход в приложение
               </div>
             </div>
           </div>
@@ -3626,26 +3693,26 @@ function DiscordLoginScreen({
           <div className="mb-8 rounded-3xl border border-white/10 bg-white/[.04] p-5">
             <div className="mb-2 flex items-center gap-3 text-lg font-black">
               <ShieldCheck size={22} className="text-white/85" />
-              Login через Discord
+              Вход через Discord
             </div>
             <div className="text-sm leading-6 text-white/55">
-              Все пользователи заходят через Discord. Если роль owner или admin, после входа
-              появится кнопка Admin.
+              Все пользователи заходят через Discord. Если роль владелец или админ, после входа
+              появится кнопка админ-панели.
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <PrimaryButton disabled={loading} onClick={onLogin}>
               <User size={18} />
-              Login Discord
+              Войти через Discord
             </PrimaryButton>
             <PurpleButton disabled={loading} onClick={onCheck}>
-              Continue
+              Продолжить
             </PurpleButton>
           </div>
 
           <div className="mt-5 rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-white/55">
-            Status: {status}
+            Статус: {status}
           </div>
         </div>
 
@@ -3683,12 +3750,7 @@ function DiscordLoginScreen({
           ))}
           <div className="absolute inset-x-10 top-1/2 h-px bg-white/20 shadow-[0_0_34px_rgba(255,255,255,.35)]" />
           <div className="login-brand-title absolute bottom-24 right-16 text-right">
-            <div className="text-[82px] font-black leading-none text-white drop-shadow-[0_0_28px_rgba(255,255,255,.22)]">
-              HARDY
-            </div>
-            <div className="text-[78px] font-black leading-none text-zinc-300 drop-shadow-[0_0_28px_rgba(255,255,255,.26)]">
-              MODS
-            </div>
+            <BrandWordmark variant="login" />
           </div>
         </div>
       </main>
@@ -3759,7 +3821,7 @@ function ModCard({
             installed ? (hasUpdate ? "bg-yellow-500 text-black" : "bg-green-600") : "bg-purple-600"
           }`}
         >
-          {installed ? (hasUpdate ? "Update" : "Installed") : "New"}
+          {installed ? (hasUpdate ? "Обновление" : "Установлено") : "Новое"}
         </div>
       </div>
 
@@ -3768,12 +3830,14 @@ function ModCard({
         <p className="mt-3 text-white/55">{item.description}</p>
         <p className="mt-3 text-white/35">
           {item.size}
-          {installed && <span className="ml-2 text-white/45">installed v{installed.version}</span>}
+          {installed && (
+            <span className="ml-2 text-white/45">установлено v{installed.version}</span>
+          )}
         </p>
 
         {item.rpfPatches && item.rpfPatches.length > 0 && (
           <div className="mt-4 rounded-2xl border border-purple-500/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">
-            RPF patch install: {item.rpfPatches.length} replacements
+            Замены RPF: {item.rpfPatches.length}
           </div>
         )}
 
@@ -3793,7 +3857,7 @@ function ModCard({
             type="button"
             disabled={!installed || loading}
             onClick={onRestore}
-            title="Восстановить backup / удалить мод"
+            title="Восстановить резервную копию / удалить мод"
             className="rounded-2xl border border-white/10 bg-white/10 px-5 transition hover:bg-white/15 disabled:opacity-40"
           >
             <RotateCcw />
@@ -3812,7 +3876,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (value: strin
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search..."
+        placeholder="Поиск..."
         className="w-full bg-transparent outline-none placeholder:text-white/30"
       />
     </div>
