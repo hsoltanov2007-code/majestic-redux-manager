@@ -235,7 +235,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.69";
+const APP_VERSION = "0.1.70";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
