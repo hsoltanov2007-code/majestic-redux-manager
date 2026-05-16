@@ -1,11 +1,11 @@
 {
-  "version": "0.1.72",
-  "notes": "Hardy MODS v0.1.72: добавлено промо-окно Majestic RP при открытии приложения с кнопками регистрации по HRDY и Discord HRDY.",
-  "pub_date": "2026-05-16T08:17:44.1559530Z",
+  "version": "0.1.73",
+  "notes": "Hardy MODS v0.1.73: обновлен текст промо-окна, закрытие уезжает вниз в футер, а после закрытия остаются быстрые кнопки Discord и /promo HRDY.",
+  "pub_date": "2026-05-16T09:25:53.7809648Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTNoSE5HeHVQZ1l3NW5jTThzV1Q1bzJYNFNuaXRndVpMQ0JvTzFIWXBwZm0wR2dCQnBrOFdQa2FXQitMeklhOSsrTDRnODVUNlIyaGljNDc4cEJQb1EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTE5NDMzCWZpbGU6SGFyZHkgTU9EU18wLjEuNzJfeDY0LXNldHVwLmV4ZQpWN3J2Sk5Hb0J3R1UwTmNrSm90OGdyNWl6ZUNhQVY3ZzFnSWlLZFBSa0NsaVFNUGRFUVpScHprcXRsYWtmUmtXY0NQeStEM1VBUGhkMFNRY0pXblZDdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.72/Hardy.MODS_0.1.72_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTdzUlE1dENGbUJkOC9GSTBrNGhjOG4rVWl3NytmaURwWU1QSUMydEpFbnJTelVrbVFVWTNtZnRSd25qWnFGSHVtWXB0cVhHOXJ4YjNlQ3VvZWdVQWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTIzNTExCWZpbGU6SGFyZHkgTU9EU18wLjEuNzNfeDY0LXNldHVwLmV4ZQpwWkk1aEJFSVIxQ3UrQVdrMmlwaHd0NmdValAxTEtBbDIzY3BYMXN4ZThkTW1wRHFDMDB6QXJJQzl5T0RqL0V4elNIRjJPY0F2SDEzbkV1NU9ZYmNCdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.73/Hardy.MODS_0.1.73_x64-setup.exe"
     }
   }
 }

@@ -237,7 +237,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.72";
+const APP_VERSION = "0.1.73";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -990,7 +990,7 @@ function App() {
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
   const [appStats, setAppStats] = useState<AppStats | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
-  const [promoOpen, setPromoOpen] = useState(true);
+  const [promoState, setPromoState] = useState<"open" | "closing" | "docked">("open");
   const [supportMessage, setSupportMessage] = useState("");
   const [mySupportTickets, setMySupportTickets] = useState<SupportTicket[]>([]);
   const [adminSupportTickets, setAdminSupportTickets] = useState<SupportTicket[]>([]);
@@ -1026,6 +1026,13 @@ function App() {
   const heroRailMotion = useRef({ down: 0, lastTime: 0, speed: 1, up: 0 });
 
   const loginCardSources = useMemo(() => buildLoginCardSources(categories), [categories]);
+
+  useEffect(() => {
+    if (promoState !== "closing") return;
+
+    const timer = window.setTimeout(() => setPromoState("docked"), 620);
+    return () => window.clearTimeout(timer);
+  }, [promoState]);
 
   useEffect(() => {
     const motion = heroRailMotion.current;
@@ -2727,7 +2734,13 @@ function App() {
           onCheck={loadAdminProfile}
           onLogin={openDiscordLogin}
         />
-        <PromoPopup open={promoOpen} onClose={() => setPromoOpen(false)} />
+        <PromoPopup
+          state={promoState}
+          onClose={() => {
+            setPromoState((current) => (current === "open" ? "closing" : current));
+          }}
+        />
+        {promoState === "docked" && <PromoDock floating />}
       </>
     );
   }
@@ -4218,7 +4231,12 @@ function App() {
         onSubmit={submitSupportMessage}
       />
 
-      <PromoPopup open={promoOpen} onClose={() => setPromoOpen(false)} />
+      <PromoPopup
+        state={promoState}
+        onClose={() => {
+          setPromoState((current) => (current === "open" ? "closing" : current));
+        }}
+      />
 
       <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-black/45 px-8 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between">
@@ -4231,6 +4249,8 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {promoState === "docked" && <PromoDock />}
+
             <button type="button" onClick={openSupportPanel} className="support-footer-button">
               <MessageCircle size={18} />
               Поддержка
@@ -4257,18 +4277,33 @@ function App() {
   );
 }
 
-function PromoPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null;
+function PromoPopup({
+  state,
+  onClose,
+}: {
+  state: "open" | "closing" | "docked";
+  onClose: () => void;
+}) {
+  if (state === "docked") return null;
 
   return (
     <div
-      className="promo-popup-overlay"
+      className={`promo-popup-overlay ${state === "closing" ? "promo-popup-overlay--closing" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label="Промо Hardy MODS"
     >
-      <div className="promo-popup-card">
-        <button type="button" className="promo-popup-close" onClick={onClose} aria-label="Закрыть">
+      <div className={`promo-popup-card ${state === "closing" ? "promo-popup-card--closing" : ""}`}>
+        <button
+          type="button"
+          className="promo-popup-close"
+          onClick={onClose}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            onClose();
+          }}
+          aria-label="Закрыть"
+        >
           <X size={20} />
         </button>
 
@@ -4278,8 +4313,8 @@ function PromoPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="relative z-10">
           <h2 className="promo-popup-title">Зарегистрируйся по нашему промо</h2>
           <p className="promo-popup-text">
-            На всех серверах Majestic введи промокод и получи 7 дней Majestic Premium плюс 50 000$
-            на старт.
+            На всех серверах Majestic введи промокод и получи:
+            <br />7 дней Majestic Premium + 50 000$ на старте.
           </p>
 
           <div className="promo-popup-code">
@@ -4308,6 +4343,34 @@ function PromoPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PromoDock({ floating = false }: { floating?: boolean }) {
+  return (
+    <div
+      className={floating ? "promo-footer-dock promo-footer-dock--floating" : "promo-footer-dock"}
+    >
+      <button
+        type="button"
+        className="promo-footer-action"
+        onClick={() => void openUrl(PROMO_DISCORD_URL)}
+        aria-label="Discord HRDY"
+      >
+        <MessageCircle size={18} />
+        <span>Discord</span>
+      </button>
+
+      <button
+        type="button"
+        className="promo-footer-action promo-footer-action--code"
+        onClick={() => void openUrl(PROMO_REGISTER_URL)}
+        aria-label="Промокод HRDY"
+      >
+        <span className="promo-footer-slash">/</span>
+        <span>promo HRDY</span>
+      </button>
     </div>
   );
 }
