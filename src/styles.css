@@ -406,8 +406,8 @@ div {
 
 .brand-letter--image {
   position: absolute;
-  width: 22%;
-  height: 36%;
+  width: 24%;
+  height: 37%;
   min-width: 0;
   background: none;
   color: transparent;
@@ -422,7 +422,7 @@ div {
 }
 
 .brand-letter--bottom.brand-letter--image {
-  width: 24%;
+  width: 25%;
   height: 35%;
   filter:
     drop-shadow(0 12px 0 rgba(0, 0, 0, 0.68))
@@ -442,62 +442,62 @@ div {
   height: 100%;
   object-fit: contain;
   user-select: none;
-  animation: brand-letter-sway 9s ease-in-out infinite both;
+  animation: brand-letter-sway var(--brand-letter-duration, 7.4s) ease-in-out infinite both;
   animation-delay: var(--brand-letter-delay, 0s);
   will-change: transform;
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--0 {
-  left: 1%;
-  top: 22%;
+  left: 3%;
+  top: 20%;
   transform: translate3d(0, 0, 20px) rotate(-3deg) scale(1.06);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--1 {
   left: 17%;
-  top: 21%;
+  top: 20%;
   transform: translate3d(0, 0, 20px) rotate(1.5deg) scale(1.02);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--2 {
-  left: 34%;
+  left: 31%;
   top: 17%;
   transform: translate3d(0, 0, 20px) rotate(-1.5deg) scale(1.08);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--3 {
-  left: 52%;
-  top: 20%;
+  left: 47%;
+  top: 19%;
   transform: translate3d(0, 0, 20px) rotate(1.2deg) scale(1.03);
 }
 
 .brand-wordmark-row--top .brand-letter--image.brand-letter--4 {
-  left: 70%;
+  left: 61%;
   top: 18%;
   transform: translate3d(0, 0, 20px) rotate(3deg) scale(1.06);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--0 {
-  left: 17%;
-  top: 45%;
+  left: 16%;
+  top: 43%;
   transform: translate3d(0, 0, 18px) rotate(-2.5deg) scale(1.08);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--1 {
-  left: 34%;
-  top: 46%;
+  left: 31%;
+  top: 44%;
   transform: translate3d(0, 0, 18px) rotate(1.5deg) scale(1.04);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--2 {
-  left: 51%;
-  top: 44%;
+  left: 46%;
+  top: 42%;
   transform: translate3d(0, 0, 18px) rotate(-1.5deg) scale(1.04);
 }
 
 .brand-wordmark-row--bottom .brand-letter--image.brand-letter--3 {
-  left: 67%;
-  top: 45%;
+  left: 60%;
+  top: 43%;
   transform: translate3d(0, 0, 18px) rotate(2.5deg) scale(1.04);
 }
 
@@ -525,7 +525,7 @@ div {
 }
 
 .discord-login-shell {
-  --login-motion-duration: 8s;
+  --login-motion-duration: 6.2s;
   --login-shake: 0px;
   --login-shake-neg: 0px;
   --login-card-pop: 0px;
@@ -762,7 +762,7 @@ div {
   --hero-proximity: 0;
   --hero-rail-up-duration: 14s;
   --hero-rail-down-duration: 16s;
-  --hero-spin-duration: 6.8s;
+  --hero-spin-duration: 4.4s;
   --home-rx: 0deg;
   --home-ry: 0deg;
   --home-logo-x: 0px;
@@ -2295,12 +2295,16 @@ div {
     transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
   }
 
-  38% {
-    transform: translate3d(0.025em, -0.018em, 0) rotate(1.2deg) scale(1.015);
+  27% {
+    transform: translate3d(0.018em, -0.02em, 7px) rotate(1.6deg) scale(1.018);
   }
 
-  70% {
-    transform: translate3d(-0.018em, 0.012em, 0) rotate(-0.9deg) scale(0.995);
+  55% {
+    transform: translate3d(-0.015em, 0.012em, 0) rotate(-1.15deg) scale(0.998);
+  }
+
+  78% {
+    transform: translate3d(0.012em, 0.016em, 5px) rotate(0.8deg) scale(1.01);
   }
 }
 

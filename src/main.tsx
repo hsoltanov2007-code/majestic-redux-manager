@@ -235,7 +235,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.70";
+const APP_VERSION = "0.1.71";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -388,7 +388,12 @@ function BrandWordmark({ variant = "hero" }: { variant?: "hero" | "login" | "min
                   row.className.includes("bottom") ? "brand-letter--bottom" : ""
                 } brand-letter--${index}`}
                 data-letter={letter.label}
-                style={{ "--brand-letter-delay": `${index * -0.38}s` } as CssVars}
+                style={
+                  {
+                    "--brand-letter-delay": `${index * -0.42}s`,
+                    "--brand-letter-duration": `${6.4 + index * 0.55}s`,
+                  } as CssVars
+                }
               >
                 <img src={letter.src} alt="" draggable={false} />
               </span>
@@ -1041,8 +1046,8 @@ function App() {
         const downCycle = Math.max(downRail.scrollHeight / 3, 1);
 
         motion.speed += (targetSpeed - motion.speed) * ease;
-        motion.up = (motion.up + (upCycle / 14) * motion.speed * dt) % upCycle;
-        motion.down = (motion.down + (downCycle / 16) * motion.speed * dt) % downCycle;
+        motion.up = (motion.up + (upCycle / 9.8) * motion.speed * dt) % upCycle;
+        motion.down = (motion.down + (downCycle / 11.2) * motion.speed * dt) % downCycle;
 
         const upX = -8 + Math.sin((motion.up / upCycle) * Math.PI * 2) * 12;
         const downX = 10 - Math.sin((motion.down / downCycle) * Math.PI * 2) * 12;
