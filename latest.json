@@ -1,11 +1,11 @@
 {
-  "version": "0.1.73",
-  "notes": "Hardy MODS v0.1.73: обновлен текст промо-окна, закрытие уезжает вниз в футер, а после закрытия остаются быстрые кнопки Discord и /promo HRDY.",
-  "pub_date": "2026-05-16T09:25:53.7809648Z",
+  "version": "0.1.74",
+  "notes": "Hardy MODS v0.1.74: deep-link вход через сайт теперь поднимает окно приложения вперед, курсор виден поверх промо на login, а Discord-кнопки получили Discord-иконку.",
+  "pub_date": "2026-05-16T10:05:58.1358938Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTdzUlE1dENGbUJkOC9GSTBrNGhjOG4rVWl3NytmaURwWU1QSUMydEpFbnJTelVrbVFVWTNtZnRSd25qWnFGSHVtWXB0cVhHOXJ4YjNlQ3VvZWdVQWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTIzNTExCWZpbGU6SGFyZHkgTU9EU18wLjEuNzNfeDY0LXNldHVwLmV4ZQpwWkk1aEJFSVIxQ3UrQVdrMmlwaHd0NmdValAxTEtBbDIzY3BYMXN4ZThkTW1wRHFDMDB6QXJJQzl5T0RqL0V4elNIRjJPY0F2SDEzbkV1NU9ZYmNCdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.73/Hardy.MODS_0.1.73_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZThIN1Blc2ExYlgyZnQrNjZ6M0tLRmJTMzg4NDlkOHcxdlhpMEVPVXRYTFFTelMxdG8zQVNHRjd2b2FKaHowOE5mQ2V6ZUl2Z2hGcmtweUptM0xQV2djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTI1OTI2CWZpbGU6SGFyZHkgTU9EU18wLjEuNzRfeDY0LXNldHVwLmV4ZQp4cXdSd1ZZV3V1ek5JT3ZHY0pNTHFFSzI2ZWJTY2FKZDArV2w1Vkp6bHR5TGdqSWNxeFlqNEc0WVhaN3BzbjNhdG5JaHNQOUl3b0lEZDJkOGxlVmhBQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.74/Hardy.MODS_0.1.74_x64-setup.exe"
     }
   }
 }

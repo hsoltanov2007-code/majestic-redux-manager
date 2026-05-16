@@ -381,6 +381,20 @@ fn copy_dir_all_with_manifest(
     Ok(installed_files)
 }
 
+fn focus_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.request_user_attention(Some(tauri::UserAttentionType::Informational));
+    }
+}
+
+#[tauri::command]
+fn show_main_window(app: tauri::AppHandle) {
+    focus_main_window(&app);
+}
+
 fn normalize_relative_key(path: &Path) -> String {
     path.components()
         .map(|component| component.as_os_str().to_string_lossy())
@@ -1128,7 +1142,9 @@ async fn download_and_run_update(url: String) -> Result<(), String> {
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            focus_main_window(app);
+        }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -1148,7 +1164,8 @@ pub fn run() {
             list_rpf_file,
             extract_rpf_file,
             replace_rpf_file,
-            download_and_run_update
+            download_and_run_update,
+            show_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

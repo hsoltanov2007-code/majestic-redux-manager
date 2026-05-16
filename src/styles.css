@@ -195,11 +195,16 @@ div {
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 9999;
+  z-index: 2147483647;
   pointer-events: none !important;
   border-radius: 999px;
   mix-blend-mode: screen;
   will-change: transform;
+}
+
+.discord-brand-icon {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 12px rgba(255, 226, 240, 0.24));
 }
 
 .glow-cursor--ring {

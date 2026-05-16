@@ -45,7 +45,6 @@ import {
   Send,
   RotateCcw,
   Search,
-  ShieldCheck,
   Settings,
   Trash2,
   Upload,
@@ -237,7 +236,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.73";
+const APP_VERSION = "0.1.74";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -267,6 +266,16 @@ const emptyState: AppState = {
 
 function isTauriRuntime() {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in (window as TauriWindow);
+}
+
+async function bringAppToFront() {
+  if (!isTauriRuntime()) return;
+
+  try {
+    await invoke("show_main_window");
+  } catch {
+    // Focusing is best-effort: auth should continue even if Windows refuses focus.
+  }
 }
 
 function canUseAdmin(user: AdminUser | null) {
@@ -495,6 +504,24 @@ function GlowCursor() {
       <div ref={ringRef} className="glow-cursor glow-cursor--ring" />
       <div ref={dotRef} className="glow-cursor glow-cursor--dot" />
     </>
+  );
+}
+
+function DiscordIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="discord-brand-icon"
+    >
+      <path
+        fill="currentColor"
+        d="M8.7 6.7c1-.42 2.1-.62 3.3-.62s2.3.2 3.3.62l.28.12.47-.9c1.45.25 2.82.75 4.06 1.5 1.2 1.78 1.8 3.78 1.83 6.02-1.42 1.05-2.79 1.69-4.1 1.92-.34-.47-.65-.98-.91-1.52.5-.19.97-.42 1.41-.7-.12-.09-.24-.18-.36-.27-2.72 1.25-5.24 1.25-7.96 0-.12.09-.24.18-.36.27.44.28.91.51 1.41.7-.26.54-.57 1.05-.91 1.52-1.31-.23-2.68-.87-4.1-1.92.03-2.24.63-4.24 1.83-6.02 1.24-.75 2.61-1.25 4.06-1.5l.47.9.28-.12Zm.95 4.45c-.75 0-1.33.68-1.33 1.52s.6 1.52 1.33 1.52c.75 0 1.35-.68 1.33-1.52 0-.84-.58-1.52-1.33-1.52Zm4.7 0c-.75 0-1.33.68-1.33 1.52s.6 1.52 1.33 1.52c.75 0 1.35-.68 1.33-1.52 0-.84-.58-1.52-1.33-1.52Z"
+      />
+    </svg>
   );
 }
 
@@ -1098,6 +1125,7 @@ function App() {
 
         if (!connection) continue;
 
+        void bringAppToFront();
         window.localStorage.setItem(ADMIN_API_URL_KEY, connection.apiUrl);
         window.localStorage.setItem(ADMIN_TOKEN_KEY, connection.token);
         setAdminApiUrl(connection.apiUrl);
@@ -2741,6 +2769,7 @@ function App() {
           }}
         />
         {promoState === "docked" && <PromoDock floating />}
+        <GlowCursor />
       </>
     );
   }
@@ -3842,13 +3871,17 @@ function App() {
                   </div>
 
                   {adminMe && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/60">
+                    <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/60">
+                      <DiscordIcon size={17} />
                       Discord: {adminMe.username || "без имени"} · {adminMe.id}
                     </div>
                   )}
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
-                    <PrimaryButton onClick={openDiscordLogin}>Войти через Discord</PrimaryButton>
+                    <PrimaryButton onClick={openDiscordLogin}>
+                      <DiscordIcon size={18} />
+                      Войти через Discord
+                    </PrimaryButton>
                     <PurpleButton disabled={loading} onClick={loadAdminProfile}>
                       Проверить сессию
                     </PurpleButton>
@@ -4337,7 +4370,7 @@ function PromoPopup({
               className="promo-popup-discord"
               onClick={() => void openUrl(PROMO_DISCORD_URL)}
             >
-              <MessageCircle size={19} />
+              <DiscordIcon size={20} />
               Discord HRDY
             </button>
           </div>
@@ -4358,7 +4391,7 @@ function PromoDock({ floating = false }: { floating?: boolean }) {
         onClick={() => void openUrl(PROMO_DISCORD_URL)}
         aria-label="Discord HRDY"
       >
-        <MessageCircle size={18} />
+        <DiscordIcon size={18} />
         <span>Discord</span>
       </button>
 
@@ -4677,7 +4710,7 @@ function DiscordLoginScreen({
 
           <div className="mb-8 rounded-3xl border border-white/10 bg-white/[.04] p-5">
             <div className="mb-2 flex items-center gap-3 text-lg font-black">
-              <ShieldCheck size={22} className="text-white/85" />
+              <DiscordIcon size={23} />
               Вход через Discord
             </div>
             <div className="text-sm leading-6 text-white/55">
@@ -4688,7 +4721,7 @@ function DiscordLoginScreen({
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <PrimaryButton disabled={loading} onClick={onLogin}>
-              <User size={18} />
+              <DiscordIcon size={18} />
               Войти через Discord
             </PrimaryButton>
             <PurpleButton disabled={loading} onClick={onCheck}>
