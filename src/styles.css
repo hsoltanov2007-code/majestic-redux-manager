@@ -2289,6 +2289,184 @@ div {
   text-transform: uppercase;
 }
 
+.promo-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(196, 104, 142, 0.2), transparent 34%),
+    rgba(9, 4, 9, 0.62);
+  backdrop-filter: blur(12px);
+}
+
+.promo-popup-card {
+  position: relative;
+  width: min(94vw, 560px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 221, 237, 0.22);
+  border-radius: 30px;
+  background:
+    linear-gradient(135deg, rgba(255, 183, 216, 0.17), rgba(75, 16, 39, 0.9)),
+    rgba(22, 10, 17, 0.96);
+  box-shadow:
+    0 32px 90px rgba(0, 0, 0, 0.58),
+    0 0 80px rgba(210, 109, 152, 0.26);
+  padding: 2rem;
+  color: white;
+}
+
+.promo-popup-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(110deg, transparent 0 28%, rgba(255, 255, 255, 0.1) 44%, transparent 62%),
+    radial-gradient(circle at 16% 10%, rgba(255, 229, 242, 0.28), transparent 27%);
+  pointer-events: none;
+}
+
+.promo-popup-glow {
+  position: absolute;
+  right: -5rem;
+  top: -5rem;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 999px;
+  background: rgba(255, 174, 214, 0.28);
+  filter: blur(34px);
+}
+
+.promo-popup-close {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  z-index: 12;
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.82);
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.promo-popup-close:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.promo-popup-badge {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.45rem 0.75rem;
+  color: rgba(255, 230, 242, 0.75);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+}
+
+.promo-popup-title {
+  margin-top: 1.35rem;
+  max-width: 30rem;
+  font-size: clamp(2rem, 3.4vw, 2.85rem);
+  font-weight: 950;
+  line-height: 1.04;
+  text-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.52),
+    0 0 28px rgba(255, 203, 230, 0.22);
+}
+
+.promo-popup-text {
+  margin-top: 1rem;
+  max-width: 29rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.promo-popup-code {
+  margin-top: 1.35rem;
+  display: flex;
+  width: fit-content;
+  align-items: baseline;
+  gap: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
+    rgba(0, 0, 0, 0.22);
+  padding: 0.8rem 1.05rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.promo-popup-code span {
+  color: rgba(255, 230, 242, 0.56);
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.promo-popup-code strong {
+  color: white;
+  font-size: 2.15rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 22px rgba(255, 205, 230, 0.42);
+}
+
+.promo-popup-actions {
+  margin-top: 1.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.promo-popup-primary,
+.promo-popup-discord {
+  display: inline-flex;
+  min-height: 3.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border-radius: 18px;
+  padding: 0 1.15rem;
+  font-weight: 950;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    background 180ms ease;
+}
+
+.promo-popup-primary {
+  background: white;
+  color: black;
+  box-shadow: 0 16px 38px rgba(255, 213, 234, 0.23);
+}
+
+.promo-popup-discord {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.promo-popup-primary:hover,
+.promo-popup-discord:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+
 @keyframes brand-letter-sway {
   0%,
   100% {

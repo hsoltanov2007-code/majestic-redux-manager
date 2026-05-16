@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Clipboard,
   Download,
+  ExternalLink,
   FileArchive,
   FileJson,
   FileText,
@@ -51,6 +52,7 @@ import {
   User,
   Users,
   Wifi,
+  X,
 } from "lucide-react";
 
 import "./styles.css";
@@ -235,7 +237,9 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.71";
+const APP_VERSION = "0.1.72";
+const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
+const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
 const LOGIN_CARD_FALLBACKS: LoginCardSource[] = [
   { title: "MAD REDUX v3.0", subtitle: "Редукс", accent: "РД" },
@@ -986,6 +990,7 @@ function App() {
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
   const [appStats, setAppStats] = useState<AppStats | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(true);
   const [supportMessage, setSupportMessage] = useState("");
   const [mySupportTickets, setMySupportTickets] = useState<SupportTicket[]>([]);
   const [adminSupportTickets, setAdminSupportTickets] = useState<SupportTicket[]>([]);
@@ -2714,13 +2719,16 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <DiscordLoginScreen
-        cardSources={loginCardSources}
-        loading={loading}
-        status={status}
-        onCheck={loadAdminProfile}
-        onLogin={openDiscordLogin}
-      />
+      <>
+        <DiscordLoginScreen
+          cardSources={loginCardSources}
+          loading={loading}
+          status={status}
+          onCheck={loadAdminProfile}
+          onLogin={openDiscordLogin}
+        />
+        <PromoPopup open={promoOpen} onClose={() => setPromoOpen(false)} />
+      </>
     );
   }
 
@@ -4210,6 +4218,8 @@ function App() {
         onSubmit={submitSupportMessage}
       />
 
+      <PromoPopup open={promoOpen} onClose={() => setPromoOpen(false)} />
+
       <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-black/45 px-8 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between">
           <div className="flex items-center gap-3 text-sm font-bold">
@@ -4243,6 +4253,61 @@ function App() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function PromoPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="promo-popup-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Промо Hardy MODS"
+    >
+      <div className="promo-popup-card">
+        <button type="button" className="promo-popup-close" onClick={onClose} aria-label="Закрыть">
+          <X size={20} />
+        </button>
+
+        <div className="promo-popup-glow" />
+        <div className="promo-popup-badge">MAJESTIC RP</div>
+
+        <div className="relative z-10">
+          <h2 className="promo-popup-title">Зарегистрируйся по нашему промо</h2>
+          <p className="promo-popup-text">
+            На всех серверах Majestic введи промокод и получи 7 дней Majestic Premium плюс 50 000$
+            на старт.
+          </p>
+
+          <div className="promo-popup-code">
+            <span>/promo</span>
+            <strong>HRDY</strong>
+          </div>
+
+          <div className="promo-popup-actions">
+            <button
+              type="button"
+              className="promo-popup-primary"
+              onClick={() => void openUrl(PROMO_REGISTER_URL)}
+            >
+              <ExternalLink size={19} />
+              Зарегистрироваться
+            </button>
+
+            <button
+              type="button"
+              className="promo-popup-discord"
+              onClick={() => void openUrl(PROMO_DISCORD_URL)}
+            >
+              <MessageCircle size={19} />
+              Discord HRDY
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

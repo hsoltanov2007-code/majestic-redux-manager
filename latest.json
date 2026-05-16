@@ -1,11 +1,11 @@
 {
-    "version":  "0.1.71",
-    "notes":  "Hardy MODS v0.1.71: буквы HARDY MODS стали ближе друг к другу, каждая буква получила отдельное движение, а 3D карточки на главном экране вращаются быстрее.",
-    "pub_date":  "2026-05-16T07:13:30.0568231Z",
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZXg4RnRqV0txVXVOcEJaK1pUSHJOZlV4TzFVaHducjVJM0pySDlkNnRRc2lGRWQ3T3VhTE9qQ0RSSlNuNlVoVElvVXRHV09LTERtWnZlTUdIT2didUFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTE1NTA4CWZpbGU6SGFyZHkgTU9EU18wLjEuNzFfeDY0LXNldHVwLmV4ZQpKZ1NUU085OFZzQklmOEZXSERHT1JjREJERnpIR2YwUVVQVVp2Tmd0SEFNK1lTS3pacVorRVh0bmZFVFdYdVErSHp3M2FCcGRsWmswK0lULzZxZklDZz09Cg==",
-                                             "url":  "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.71/Hardy.MODS_0.1.71_x64-setup.exe"
-                                         }
-                  }
+  "version": "0.1.72",
+  "notes": "Hardy MODS v0.1.72: добавлено промо-окно Majestic RP при открытии приложения с кнопками регистрации по HRDY и Discord HRDY.",
+  "pub_date": "2026-05-16T08:17:44.1559530Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTNoSE5HeHVQZ1l3NW5jTThzV1Q1bzJYNFNuaXRndVpMQ0JvTzFIWXBwZm0wR2dCQnBrOFdQa2FXQitMeklhOSsrTDRnODVUNlIyaGljNDc4cEJQb1EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc4OTE5NDMzCWZpbGU6SGFyZHkgTU9EU18wLjEuNzJfeDY0LXNldHVwLmV4ZQpWN3J2Sk5Hb0J3R1UwTmNrSm90OGdyNWl6ZUNhQVY3ZzFnSWlLZFBSa0NsaVFNUGRFUVpScHprcXRsYWtmUmtXY0NQeStEM1VBUGhkMFNRY0pXblZDdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.72/Hardy.MODS_0.1.72_x64-setup.exe"
+    }
+  }
 }
