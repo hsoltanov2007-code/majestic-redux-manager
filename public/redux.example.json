@@ -19,7 +19,19 @@
           "description": "Light redux pack for Majestic RP.",
           "size": "1.2 GB",
           "image": "",
-          "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/light-redux.zip"
+          "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/light-redux.zip",
+          "variants": [
+            {
+              "id": "light",
+              "name": "Светлый",
+              "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/light-redux.zip"
+            },
+            {
+              "id": "dark",
+              "name": "Темный",
+              "downloadUrl": "https://github.com/your-name/redux-data/releases/download/v1/dark-redux.zip"
+            }
+          ]
         },
         {
           "id": "majestic-redux",

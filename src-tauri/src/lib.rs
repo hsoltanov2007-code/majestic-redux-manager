@@ -24,7 +24,24 @@ struct ModItem {
     description: String,
     size: String,
     image: Option<String>,
+    #[serde(default, alias = "download_url", alias = "url", alias = "zipUrl", alias = "zip_url")]
     download_url: String,
+    #[serde(default, alias = "rpf_patches")]
+    rpf_patches: Option<Vec<RpfPatch>>,
+    #[serde(default, alias = "modVariants", alias = "mod_variants")]
+    variants: Option<Vec<ModVariant>>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ModVariant {
+    #[serde(default)]
+    id: String,
+    #[serde(default, alias = "label", alias = "title")]
+    name: String,
+    #[serde(default, alias = "download_url", alias = "url", alias = "zipUrl", alias = "zip_url")]
+    download_url: String,
+    #[serde(default, alias = "rpf_patches")]
     rpf_patches: Option<Vec<RpfPatch>>,
 }
 
@@ -32,7 +49,9 @@ struct ModItem {
 #[serde(rename_all = "camelCase")]
 struct RpfPatch {
     file: String,
+    #[serde(alias = "internal_path")]
     internal_path: String,
+    #[serde(alias = "rpf_path")]
     rpf_path: String,
 }
 
@@ -568,6 +587,28 @@ fn backup_one_file(source: &Path, gta_dir: &Path, backup_dir: &Path) -> Result<(
     Ok(())
 }
 
+fn restore_installed_mod(
+    gta_dir: &Path,
+    backup_dir: &Path,
+    installed: &InstalledMod,
+) -> Result<(), String> {
+    for file in &installed.files {
+        let installed_file = safe_join(gta_dir, file)?;
+
+        if installed_file.is_dir() {
+            fs::remove_dir_all(installed_file).ok();
+        } else if installed_file.exists() {
+            fs::remove_file(installed_file).ok();
+        }
+    }
+
+    if backup_dir.exists() {
+        copy_dir_all(backup_dir, gta_dir)?;
+    }
+
+    Ok(())
+}
+
 fn resolve_rpf_path(gta_dir: &Path, rpf_path: &str) -> Result<(PathBuf, String), String> {
     let direct = safe_join(gta_dir, rpf_path)?;
 
@@ -732,8 +773,14 @@ fn install_zip_blocking(
     let root = app_root()?;
     let temp_dir = root.join("temp");
     let backup_dir = root.join("backups").join(&redux_id);
+    let mut state = load_state_file();
 
     fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+
+    if let Some(previous) = state.installed_redux.remove(&redux_id) {
+        restore_installed_mod(&gta_dir, &backup_dir, &previous)?;
+        save_state_file(&state)?;
+    }
 
     let extract_path = temp_dir.join(&redux_id);
 
@@ -784,8 +831,6 @@ fn install_zip_blocking(
     if !is_mod_really_installed(&gta_dir, &installed_files) {
         return Err("Установка не завершилась".to_string());
     }
-
-    let mut state = load_state_file();
 
     state.gta_path = gta_dir.to_string_lossy().to_string();
 
@@ -879,17 +924,7 @@ async fn restore_backup(redux_id: String, gta_path: String) -> Result<AppState, 
         let mut state = load_state_file();
 
         if let Some(installed) = state.installed_redux.get(&redux_id) {
-            for file in &installed.files {
-                let installed_file = safe_join(&gta_dir, file)?;
-
-                if installed_file.exists() {
-                    fs::remove_file(installed_file).ok();
-                }
-            }
-        }
-
-        if backup_dir.exists() {
-            copy_dir_all(&backup_dir, &gta_dir)?;
+            restore_installed_mod(&gta_dir, &backup_dir, installed)?;
         }
 
         state.installed_redux.remove(&redux_id);

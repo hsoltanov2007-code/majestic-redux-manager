@@ -73,6 +73,13 @@ type RpfPatch = {
   rpfPath: string;
 };
 
+type ModVariant = {
+  id: string;
+  name: string;
+  downloadUrl: string;
+  rpfPatches?: RpfPatch[];
+};
+
 type ModItem = {
   id: string;
   name: string;
@@ -82,6 +89,7 @@ type ModItem = {
   image?: string;
   downloadUrl: string;
   rpfPatches?: RpfPatch[];
+  variants?: ModVariant[];
 };
 
 type Category = {
@@ -236,7 +244,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.74";
+const APP_VERSION = "0.1.75";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -342,6 +350,91 @@ function getModGallery(category: Category, mod: ModItem) {
   );
 }
 
+const MOD_VARIANT_VERSION_MARKER = "::variant=";
+
+function getInstallVersion(mod: ModItem, variant?: ModVariant) {
+  return variant ? `${mod.version}${MOD_VARIANT_VERSION_MARKER}${variant.id}` : mod.version;
+}
+
+function getDisplayVersion(version: string) {
+  const markerIndex = version.indexOf(MOD_VARIANT_VERSION_MARKER);
+  return markerIndex >= 0 ? version.slice(0, markerIndex) : version;
+}
+
+function getInstallOptions(mod: ModItem) {
+  const variants = (mod.variants || []).filter((variant) => variant.downloadUrl.trim());
+
+  if (variants.length > 0) {
+    return variants.map((variant) => ({
+      downloadUrl: variant.downloadUrl,
+      key: variant.id,
+      label: variant.name || variant.id,
+      rpfPatches: variant.rpfPatches ?? mod.rpfPatches ?? [],
+      variant,
+      version: getInstallVersion(mod, variant),
+    }));
+  }
+
+  return [
+    {
+      downloadUrl: mod.downloadUrl,
+      key: "default",
+      label: "Установить",
+      rpfPatches: mod.rpfPatches ?? [],
+      variant: undefined,
+      version: mod.version,
+    },
+  ];
+}
+
+function getActiveInstallOption(mod: ModItem, installed?: InstalledMod) {
+  if (!installed) return undefined;
+
+  return getInstallOptions(mod).find((option) => option.version === installed.version);
+}
+
+function getModPatchCount(mod: ModItem) {
+  const baseCount = mod.rpfPatches?.length ?? 0;
+  const variantCount = (mod.variants || []).reduce(
+    (total, variant) => total + (variant.rpfPatches?.length ?? 0),
+    0,
+  );
+
+  return baseCount + variantCount;
+}
+
+function getModPatchGroups(mod: ModItem) {
+  const groups: Array<{ label: string; patches: RpfPatch[] }> = [];
+
+  if (mod.rpfPatches?.length) {
+    groups.push({ label: "Основные замены", patches: mod.rpfPatches });
+  }
+
+  for (const variant of mod.variants || []) {
+    if (variant.rpfPatches?.length) {
+      groups.push({ label: variant.name, patches: variant.rpfPatches });
+    }
+  }
+
+  return groups;
+}
+
+function modHasDownload(mod: ModItem) {
+  return Boolean(
+    mod.downloadUrl.trim() || (mod.variants || []).some((variant) => variant.downloadUrl.trim()),
+  );
+}
+
+function getInstallButtonLabel(
+  installed: InstalledMod | undefined,
+  option: ReturnType<typeof getInstallOptions>[number],
+  hasVariants: boolean,
+) {
+  if (installed?.version === option.version) return "Установлено";
+  if (installed) return hasVariants ? `Заменить: ${option.label}` : "Обновить";
+  return hasVariants ? option.label : "Установить";
+}
+
 function getModContentItems(mod: ModItem) {
   const items = [
     `Версия v${mod.version}`,
@@ -350,8 +443,14 @@ function getModContentItems(mod: ModItem) {
     "Резервная копия для быстрого восстановления",
   ];
 
-  if (mod.rpfPatches?.length) {
-    items.push(`Замены внутри RPF: ${mod.rpfPatches.length}`);
+  if (mod.variants?.length) {
+    items.push(`Варианты установки: ${mod.variants.map((variant) => variant.name).join(" / ")}`);
+  }
+
+  const patchCount = getModPatchCount(mod);
+
+  if (patchCount > 0) {
+    items.push(`Замены внутри RPF: ${patchCount}`);
   } else {
     items.push("Установка файлов без ручной замены RPF");
   }
@@ -681,13 +780,47 @@ function clearAuthSession() {
   window.localStorage.removeItem(AUTH_SESSION_KEY);
 }
 
+function normalizeModVariants(value: unknown, modIndex: number): ModVariant[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const variants = value
+    .map((entry, index): ModVariant | null => {
+      if (!isRecord(entry)) return null;
+
+      const name = readString(
+        entry.name ?? entry.title ?? entry.label,
+        index === 0 ? "Светлый" : index === 1 ? "Темный" : `Вариант ${index + 1}`,
+      );
+      const id = sanitizeId(readString(entry.id, name), `variant-${modIndex + 1}-${index + 1}`);
+      const downloadUrl = readString(
+        entry.downloadUrl ?? entry.download_url ?? entry.url ?? entry.zipUrl ?? entry.zip_url,
+      );
+
+      if (!downloadUrl) return null;
+
+      return {
+        id,
+        name,
+        downloadUrl,
+        rpfPatches: normalizeRpfPatches(entry.rpfPatches ?? entry.rpf_patches),
+      };
+    })
+    .filter((variant): variant is ModVariant => Boolean(variant));
+
+  return variants.length > 0 ? variants : undefined;
+}
+
 function normalizeMod(value: unknown, index: number): ModItem | null {
   if (!isRecord(value)) return null;
 
   const name = readString(value.name);
   const downloadUrl = readString(value.downloadUrl ?? value.download_url);
+  const variants = normalizeModVariants(
+    value.variants ?? value.modVariants ?? value.mod_variants,
+    index,
+  );
 
-  if (!name || !downloadUrl) return null;
+  if (!name || (!downloadUrl && !variants?.length)) return null;
 
   return {
     id: readString(value.id, name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || `mod-${index + 1}`),
@@ -696,8 +829,9 @@ function normalizeMod(value: unknown, index: number): ModItem | null {
     description: readString(value.description, "Описание не указано"),
     size: readString(value.size, "Размер неизвестен"),
     image: readString(value.image) || undefined,
-    downloadUrl,
+    downloadUrl: downloadUrl || variants?.[0]?.downloadUrl || "",
     rpfPatches: normalizeRpfPatches(value.rpfPatches ?? value.rpf_patches),
+    variants,
   };
 }
 
@@ -837,6 +971,23 @@ function createAdminMod(index = 1): ModItem {
     downloadUrl: "https://github.com/USER/REPO/releases/download/v1/mod.zip",
   };
 }
+
+function createAdminVariant(index = 1): ModVariant {
+  const preset =
+    index === 1
+      ? { id: "light", name: "Светлый", suffix: "light" }
+      : index === 2
+        ? { id: "dark", name: "Темный", suffix: "dark" }
+        : { id: `variant-${index}`, name: `Вариант ${index}`, suffix: `variant-${index}` };
+
+  return {
+    id: preset.id,
+    name: preset.name,
+    downloadUrl: `https://github.com/USER/REPO/releases/download/v1/mod-${preset.suffix}.zip`,
+  };
+}
+
+type ModVariantField = "id" | "name" | "downloadUrl";
 
 function createRpfPatch(): RpfPatch {
   return {
@@ -1398,7 +1549,7 @@ function App() {
   const catalogStats = useMemo(() => {
     const modCount = adminCategories.reduce((total, category) => total + category.mods.length, 0);
     const missingDownloads = adminCategories.reduce(
-      (total, category) => total + category.mods.filter((mod) => !mod.downloadUrl.trim()).length,
+      (total, category) => total + category.mods.filter((mod) => !modHasDownload(mod)).length,
       0,
     );
     const duplicateIds = new Set<string>();
@@ -1735,6 +1886,207 @@ function App() {
                   ? {
                       ...mod,
                       rpfPatches: (mod.rpfPatches || []).filter((_, index) => index !== patchIndex),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function addAdminVariant(categoryId: string, modId: string) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: [
+                        ...(mod.variants || []),
+                        createAdminVariant((mod.variants?.length || 0) + 1),
+                      ],
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function addAdminVariantPair(categoryId: string, modId: string) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants:
+                        (mod.variants || []).length > 0
+                          ? [
+                              ...(mod.variants || []),
+                              createAdminVariant((mod.variants || []).length + 1),
+                            ]
+                          : [createAdminVariant(1), createAdminVariant(2)],
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function updateAdminVariant(
+    categoryId: string,
+    modId: string,
+    variantIndex: number,
+    field: ModVariantField,
+    value: string,
+  ) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: (mod.variants || []).map((variant, index) =>
+                        index === variantIndex
+                          ? {
+                              ...variant,
+                              [field]: field === "id" ? sanitizeId(value, variant.id) : value,
+                            }
+                          : variant,
+                      ),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function removeAdminVariant(categoryId: string, modId: string, variantIndex: number) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: (mod.variants || []).filter((_, index) => index !== variantIndex),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function addAdminVariantRpfPatch(categoryId: string, modId: string, variantIndex: number) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: (mod.variants || []).map((variant, index) =>
+                        index === variantIndex
+                          ? {
+                              ...variant,
+                              rpfPatches: [...(variant.rpfPatches || []), createRpfPatch()],
+                            }
+                          : variant,
+                      ),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function updateAdminVariantRpfPatch(
+    categoryId: string,
+    modId: string,
+    variantIndex: number,
+    patchIndex: number,
+    field: keyof RpfPatch,
+    value: string,
+  ) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: (mod.variants || []).map((variant, index) =>
+                        index === variantIndex
+                          ? {
+                              ...variant,
+                              rpfPatches: (variant.rpfPatches || []).map((patch, patchPosition) =>
+                                patchPosition === patchIndex
+                                  ? updateRpfPatchField(patch, field, value)
+                                  : patch,
+                              ),
+                            }
+                          : variant,
+                      ),
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
+  function removeAdminVariantRpfPatch(
+    categoryId: string,
+    modId: string,
+    variantIndex: number,
+    patchIndex: number,
+  ) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      variants: (mod.variants || []).map((variant, index) =>
+                        index === variantIndex
+                          ? {
+                              ...variant,
+                              rpfPatches: (variant.rpfPatches || []).filter(
+                                (_, patchPosition) => patchPosition !== patchIndex,
+                              ),
+                            }
+                          : variant,
+                      ),
                     }
                   : mod,
               ),
@@ -2495,17 +2847,27 @@ function App() {
     }
   }
 
-  async function installRedux(item: ModItem) {
+  async function installRedux(item: ModItem, variant?: ModVariant) {
     if (!gtaPath) {
       setPage("settings");
       setStatus("Сначала выбери GTA папку");
       return;
     }
 
+    const installVersion = getInstallVersion(item, variant);
+    const installName = variant ? `${item.name} (${variant.name})` : item.name;
+    const downloadUrl = (variant?.downloadUrl || item.downloadUrl).trim();
+    const rpfPatches = variant?.rpfPatches ?? item.rpfPatches ?? [];
+
+    if (!downloadUrl) {
+      setStatus(`Для ${installName} не указана ссылка на архив`);
+      return;
+    }
+
     const installed = installedRedux[item.id];
 
-    if (installed?.version === item.version) {
-      setStatus(`${item.name} уже установлен`);
+    if (installed?.version === installVersion) {
+      setStatus(`${installName} уже установлен`);
       return;
     }
 
@@ -2516,7 +2878,7 @@ function App() {
         const nextInstalled = {
           ...installedRedux,
           [item.id]: {
-            version: item.version,
+            version: installVersion,
             files: [],
           },
         };
@@ -2528,20 +2890,20 @@ function App() {
           installedRedux: nextInstalled,
         });
         setProgress(100);
-        setStatus(`${item.name} отмечен как установлен в режиме предпросмотра`);
+        setStatus(`${installName} отмечен как установлен в режиме предпросмотра`);
         return;
       }
 
       const state = await invoke<AppState>("install_redux", {
         reduxId: item.id,
-        reduxVersion: item.version,
-        downloadUrl: item.downloadUrl,
+        reduxVersion: installVersion,
+        downloadUrl,
         gtaPath,
-        rpfPatches: item.rpfPatches || [],
+        rpfPatches,
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus(installed ? item.name + " обновлён" : item.name + " установлен");
+      setStatus(installed ? installName + " обновлён" : installName + " установлен");
     } catch (err) {
       setStatus("Ошибка установки: " + String(err));
     } finally {
@@ -2736,12 +3098,12 @@ function App() {
     return selectedMod ? getModContentItems(selectedMod) : [];
   }, [selectedMod]);
 
+  const selectedModPatchGroups = useMemo(() => {
+    return selectedMod ? getModPatchGroups(selectedMod) : [];
+  }, [selectedMod]);
+
   const selectedModInstalled = selectedMod ? installedRedux[selectedMod.id] : undefined;
-  const selectedModHasUpdate = Boolean(
-    selectedModInstalled && selectedMod && selectedModInstalled.version !== selectedMod.version,
-  );
-  const selectedModInstallDisabled =
-    loading || (Boolean(selectedModInstalled) && !selectedModHasUpdate);
+  const selectedModInstallOptions = selectedMod ? getInstallOptions(selectedMod) : [];
   const selectedModImage =
     selectedModGallery.length > 0
       ? selectedModGallery[modGalleryIndex % selectedModGallery.length]
@@ -3341,7 +3703,7 @@ function App() {
                       installed={installed}
                       loading={loading}
                       onOpen={() => openModDetail(selectedCategory, item)}
-                      onInstall={() => installRedux(item)}
+                      onInstall={(variant) => installRedux(item, variant)}
                       onRestore={() => restoreRedux(item)}
                     />
                   );
@@ -3430,17 +3792,23 @@ function App() {
                 <p>{selectedMod.description || "Описание мода пока не заполнено в каталоге."}</p>
 
                 <div className="mod-detail-actions">
-                  <PrimaryButton
-                    disabled={selectedModInstallDisabled}
-                    onClick={() => installRedux(selectedMod)}
-                  >
-                    <Download size={18} />
-                    {selectedModHasUpdate
-                      ? "Обновить"
-                      : selectedModInstalled
-                        ? "Установлено"
-                        : "Установить"}
-                  </PrimaryButton>
+                  <div className="mod-detail-install-options">
+                    {selectedModInstallOptions.map((option) => {
+                      const optionInstalled = selectedModInstalled?.version === option.version;
+                      const hasVariants = selectedModInstallOptions.length > 1;
+
+                      return (
+                        <PrimaryButton
+                          key={option.key}
+                          disabled={loading || optionInstalled || !option.downloadUrl.trim()}
+                          onClick={() => installRedux(selectedMod, option.variant)}
+                        >
+                          <Download size={18} />
+                          {getInstallButtonLabel(selectedModInstalled, option, hasVariants)}
+                        </PrimaryButton>
+                      );
+                    })}
+                  </div>
 
                   <PurpleButton
                     disabled={!selectedModInstalled || loading}
@@ -3473,15 +3841,21 @@ function App() {
                       Файлы Redux
                     </div>
 
-                    {selectedMod.rpfPatches?.length ? (
+                    {selectedModPatchGroups.length > 0 ? (
                       <div className="mod-detail-patches">
-                        {selectedMod.rpfPatches.map((patch, index) => (
-                          <div key={`${patch.rpfPath}-${patch.internalPath}-${index}`}>
-                            <span>Замена {index + 1}</span>
-                            <strong>{getRpfPatchLabel(patch)}</strong>
-                            {patch.file && <em>{patch.file}</em>}
-                          </div>
-                        ))}
+                        {selectedModPatchGroups.map((group) =>
+                          group.patches.map((patch, index) => (
+                            <div
+                              key={`${group.label}-${patch.rpfPath}-${patch.internalPath}-${index}`}
+                            >
+                              <span>
+                                {group.label} #{index + 1}
+                              </span>
+                              <strong>{getRpfPatchLabel(patch)}</strong>
+                              {patch.file && <em>{patch.file}</em>}
+                            </div>
+                          )),
+                        )}
                       </div>
                     ) : (
                       <p className="mod-detail-muted">
@@ -3838,6 +4212,203 @@ function App() {
                                         )
                                       }
                                     />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 rounded-2xl border border-pink-300/20 bg-pink-300/10 p-4">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                              <div>
+                                <div className="font-black">Варианты установки</div>
+                                <div className="text-xs text-white/45">
+                                  Для светлой, темной или другой версии можно указать отдельный ZIP
+                                  и свои замены RPF. В карточке появятся отдельные кнопки.
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {(mod.variants || []).length === 0 && (
+                                  <PrimaryButton
+                                    onClick={() => addAdminVariantPair(category.id, mod.id)}
+                                  >
+                                    <Plus size={18} />
+                                    Светлый / Темный
+                                  </PrimaryButton>
+                                )}
+                                <PurpleButton onClick={() => addAdminVariant(category.id, mod.id)}>
+                                  <Plus size={18} />
+                                  Вариант
+                                </PurpleButton>
+                              </div>
+                            </div>
+
+                            {(mod.variants || []).length === 0 && (
+                              <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
+                                Если у мода один архив, оставь варианты пустыми. Если есть две
+                                версии, добавь Светлый / Темный и вставь ссылки на ZIP.
+                              </div>
+                            )}
+
+                            <div className="space-y-4">
+                              {(mod.variants || []).map((variant, variantIndex) => (
+                                <div
+                                  key={`${mod.id}-variant-${variant.id}-${variantIndex}`}
+                                  className="rounded-xl border border-white/10 bg-black/25 p-3"
+                                >
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="text-sm font-black">
+                                      {variant.name || `Вариант ${variantIndex + 1}`}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeAdminVariant(category.id, mod.id, variantIndex)
+                                      }
+                                      className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <AdminField
+                                      label="ID варианта"
+                                      value={variant.id}
+                                      onChange={(value) =>
+                                        updateAdminVariant(
+                                          category.id,
+                                          mod.id,
+                                          variantIndex,
+                                          "id",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                    <AdminField
+                                      label="Название кнопки"
+                                      value={variant.name}
+                                      onChange={(value) =>
+                                        updateAdminVariant(
+                                          category.id,
+                                          mod.id,
+                                          variantIndex,
+                                          "name",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                    <AdminField
+                                      label="Ссылка на ZIP"
+                                      value={variant.downloadUrl}
+                                      onChange={(value) =>
+                                        updateAdminVariant(
+                                          category.id,
+                                          mod.id,
+                                          variantIndex,
+                                          "downloadUrl",
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </div>
+
+                                  <div className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/10 p-3">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                      <div className="text-sm font-black">
+                                        Замены RPF для этого варианта
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          addAdminVariantRpfPatch(category.id, mod.id, variantIndex)
+                                        }
+                                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black hover:bg-white/15"
+                                      >
+                                        + RPF
+                                      </button>
+                                    </div>
+
+                                    {(variant.rpfPatches || []).length === 0 && (
+                                      <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/45">
+                                        Если вариант использует общие замены мода, можно оставить
+                                        пустым.
+                                      </div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                      {(variant.rpfPatches || []).map((patch, patchIndex) => (
+                                        <div
+                                          key={`${variant.id}-rpf-${patchIndex}`}
+                                          className="rounded-lg border border-white/10 bg-black/20 p-3"
+                                        >
+                                          <div className="mb-3 flex items-center justify-between gap-3">
+                                            <div className="text-xs font-black">
+                                              Замена #{patchIndex + 1}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                removeAdminVariantRpfPatch(
+                                                  category.id,
+                                                  mod.id,
+                                                  variantIndex,
+                                                  patchIndex,
+                                                )
+                                              }
+                                              className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+
+                                          <div className="grid grid-cols-3 gap-3">
+                                            <AdminField
+                                              label="Путь RPF"
+                                              value={patch.rpfPath}
+                                              onChange={(value) =>
+                                                updateAdminVariantRpfPatch(
+                                                  category.id,
+                                                  mod.id,
+                                                  variantIndex,
+                                                  patchIndex,
+                                                  "rpfPath",
+                                                  value,
+                                                )
+                                              }
+                                            />
+                                            <AdminField
+                                              label="Путь внутри архива"
+                                              value={patch.internalPath}
+                                              onChange={(value) =>
+                                                updateAdminVariantRpfPatch(
+                                                  category.id,
+                                                  mod.id,
+                                                  variantIndex,
+                                                  patchIndex,
+                                                  "internalPath",
+                                                  value,
+                                                )
+                                              }
+                                            />
+                                            <AdminField
+                                              label="Файл в ZIP"
+                                              value={patch.file}
+                                              onChange={(value) =>
+                                                updateAdminVariantRpfPatch(
+                                                  category.id,
+                                                  mod.id,
+                                                  variantIndex,
+                                                  patchIndex,
+                                                  "file",
+                                                  value,
+                                                )
+                                              }
+                                            />
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -4812,11 +5383,14 @@ function ModCard({
   installed?: InstalledMod;
   loading: boolean;
   onOpen: () => void;
-  onInstall: () => void;
+  onInstall: (variant?: ModVariant) => void;
   onRestore: () => void;
 }) {
-  const hasUpdate = Boolean(installed && installed.version !== item.version);
-  const installDisabled = loading || (Boolean(installed) && !hasUpdate);
+  const installOptions = getInstallOptions(item);
+  const activeOption = getActiveInstallOption(item, installed);
+  const hasUpdate = Boolean(installed && !activeOption);
+  const hasVariants = installOptions.length > 1;
+  const patchCount = getModPatchCount(item);
 
   return (
     <div className="mod-card group">
@@ -4848,31 +5422,49 @@ function ModCard({
         <p className="mt-3 text-white/35">
           {item.size}
           {installed && (
-            <span className="ml-2 text-white/45">установлено v{installed.version}</span>
+            <span className="ml-2 text-white/45">
+              установлено v{getDisplayVersion(installed.version)}
+              {activeOption?.variant ? ` (${activeOption.variant.name})` : ""}
+            </span>
           )}
         </p>
 
-        {item.rpfPatches && item.rpfPatches.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-purple-500/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">
-            Замены RPF: {item.rpfPatches.length}
+        {hasVariants && (
+          <div className="mt-4 rounded-2xl border border-pink-300/20 bg-pink-300/10 px-4 py-3 text-sm font-black text-pink-100">
+            Варианты: {installOptions.map((option) => option.label).join(" / ")}
           </div>
         )}
 
-        <div className="mt-6 flex gap-3">
+        {patchCount > 0 && (
+          <div className="mt-4 rounded-2xl border border-purple-500/25 bg-purple-500/10 px-4 py-3 text-sm font-black text-purple-100">
+            Замены RPF: {patchCount}
+          </div>
+        )}
+
+        <div className="mod-card-actions mt-6 flex gap-3">
           <button type="button" onClick={onOpen} className="mod-open-button">
             Подробнее
           </button>
 
-          <button
-            type="button"
-            disabled={installDisabled}
-            onClick={onInstall}
-            className={`mod-action-button flex-1 ${
-              installed && !hasUpdate ? "mod-action-button--installed" : ""
-            } disabled:opacity-40`}
-          >
-            {hasUpdate ? "Обновить" : installed ? "Установлено" : "Установить"}
-          </button>
+          <div className="mod-install-options">
+            {installOptions.map((option) => {
+              const optionInstalled = installed?.version === option.version;
+
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  disabled={loading || optionInstalled || !option.downloadUrl.trim()}
+                  onClick={() => onInstall(option.variant)}
+                  className={`mod-action-button flex-1 ${
+                    optionInstalled ? "mod-action-button--installed" : ""
+                  } ${hasVariants ? "mod-action-button--variant" : ""} disabled:opacity-40`}
+                >
+                  {getInstallButtonLabel(installed, option, hasVariants)}
+                </button>
+              );
+            })}
+          </div>
 
           <button
             type="button"
