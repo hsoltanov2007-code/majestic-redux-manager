@@ -1,11 +1,11 @@
 {
-  "version": "0.1.75",
-  "notes": "Варианты установки модов и корректная замена RPF",
-  "pub_date": "2026-05-21T10:02:50Z",
+  "version": "0.1.76",
+  "notes": "Красивые описания, фильтры админки и случайные карточки",
+  "pub_date": "2026-05-21T11:53:25Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTA4Kzd0Tm80ZHdOeXkwUUVpUjVEQWp2MytZTEZtMTJmRS92QzhIY0grekErM3FLZHZncGtZYXRzRlB3YzFYSXpkelo1ckpmQ0FRZjRyaThZVk9DWndBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MzU3NjU3CWZpbGU6SGFyZHkgTU9EU18wLjEuNzVfeDY0LXNldHVwLmV4ZQpxU2l1QU9HWHNQS0dhWmtJZCtGWWU0eEpTSllDTVpWZHpBb1EyS1doTzFoOThTTmp2Z1hOV3FvTnVZeUJpOHJuc2NqRXdhdDdHeXo3YW1CV2RpOWNDUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.75/Hardy.MODS_0.1.75_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZXhQdEh0Y0I2U2ovMjR0U3FkK2JhZmVJdkhWODFCSXFOZjJ2cy9lVVN2K0Q0aXNHRmxmL1NuL0sza2tpSlJFR1FYcjlXa045VXRtRHV1c2tDZ09hSVFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5MzY0MzQzCWZpbGU6SGFyZHkgTU9EU18wLjEuNzZfeDY0LXNldHVwLmV4ZQpVQmpNM29rRzQ5K2svcnlVakZJREVidnFheElkNk9kOEpCN0ZEWkgxVU5TTndMM3RQOUxkV1hES3hDenRsOFV2NjVGYnBtVXliajB6NUFUd2xvczZCUT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.76/Hardy.MODS_0.1.76_x64-setup.exe"
     }
   }
 }

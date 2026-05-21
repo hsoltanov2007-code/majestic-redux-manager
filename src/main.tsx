@@ -173,6 +173,8 @@ type Page =
   | "admin";
 
 type FilterMode = "all" | "installed" | "notInstalled";
+type AdminCatalogFilter = "all" | "missing" | "variants";
+type AdminSupportFilter = "open" | "all" | "answered";
 
 type ProgressPayload = {
   progress: number;
@@ -244,7 +246,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.75";
+const APP_VERSION = "0.1.76";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -348,6 +350,55 @@ function getModGallery(category: Category, mod: ModItem) {
   return Array.from(
     new Set([mod.image, category.image].filter((src): src is string => Boolean(src))),
   );
+}
+
+function cleanDescriptionText(value: string) {
+  return value
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getDescriptionParts(description: string) {
+  const fallback = "Описание мода пока не заполнено в каталоге.";
+  const clean = cleanDescriptionText(description || fallback);
+  const colonIndex = clean.indexOf(":");
+  const hasTitle = colonIndex > 0 && colonIndex < 48;
+  const title = hasTitle ? clean.slice(0, colonIndex).trim() : "Описание мода";
+  const body = (hasTitle ? clean.slice(colonIndex + 1) : clean).trim();
+  const normalizedBody = body
+    .replace(/[•●▪]/g, "\n")
+    .replace(/\s+-\s+/g, "\n")
+    .replace(/;\s*/g, "\n");
+  const rawItems = normalizedBody
+    .split(/\n+/)
+    .map((item) => item.replace(/^[-–—*]\s*/, "").trim())
+    .filter(Boolean);
+
+  if (rawItems.length > 1) {
+    return { intro: "", items: rawItems, title };
+  }
+
+  const sentenceItems = body
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return sentenceItems.length > 1
+    ? { intro: "", items: sentenceItems, title }
+    : { intro: body, items: [], title };
+}
+
+function shuffleList<T>(items: T[]) {
+  const next = [...items];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
 }
 
 const MOD_VARIANT_VERSION_MARKER = "::variant=";
@@ -1172,9 +1223,13 @@ function App() {
   const [supportMessage, setSupportMessage] = useState("");
   const [mySupportTickets, setMySupportTickets] = useState<SupportTicket[]>([]);
   const [adminSupportTickets, setAdminSupportTickets] = useState<SupportTicket[]>([]);
+  const [adminSupportFilter, setAdminSupportFilter] = useState<AdminSupportFilter>("open");
   const [supportReplyDrafts, setSupportReplyDrafts] = useState<Record<string, string>>({});
   const [newAdminDiscordId, setNewAdminDiscordId] = useState("");
   const [newAdminLabel, setNewAdminLabel] = useState("");
+  const [variantUrlDrafts, setVariantUrlDrafts] = useState<Record<string, string>>({});
+  const [adminCatalogQuery, setAdminCatalogQuery] = useState("");
+  const [adminCatalogFilter, setAdminCatalogFilter] = useState<AdminCatalogFilter>("all");
 
   const [gtaPath, setGtaPath] = useState("");
   const [systemPath, setSystemPath] = useState("");
@@ -1490,11 +1545,13 @@ function App() {
   );
 
   const featuredMods = useMemo(() => {
-    return categories.flatMap((category) =>
-      category.mods.slice(0, 3).map((mod) => ({
-        category,
-        mod,
-      })),
+    return shuffleList(
+      categories.flatMap((category) =>
+        category.mods.map((mod) => ({
+          category,
+          mod,
+        })),
+      ),
     );
   }, [categories]);
 
@@ -1541,8 +1598,18 @@ function App() {
             },
           ];
 
-    return source.slice(0, 6);
+    return shuffleList(source);
   }, [featuredMods]);
+
+  const heroRailMods = useMemo(
+    () =>
+      [0, 1].map(() => [
+        ...shuffleList(heroMods),
+        ...shuffleList(heroMods),
+        ...shuffleList(heroMods),
+      ]),
+    [heroMods],
+  );
 
   const adminCatalogJson = useMemo(() => catalogToJson(adminCategories), [adminCategories]);
 
@@ -1572,6 +1639,65 @@ function App() {
       modCount,
     };
   }, [adminCategories]);
+
+  const adminCatalogView = useMemo(() => {
+    const query = adminCatalogQuery.toLowerCase().trim();
+
+    return adminCategories
+      .map((category) => {
+        const categoryMatches = `${category.id} ${category.title} ${category.description}`
+          .toLowerCase()
+          .includes(query);
+        const mods = category.mods.filter((mod) => {
+          const modMatches =
+            !query ||
+            categoryMatches ||
+            `${mod.id} ${mod.name} ${mod.description} ${mod.version}`.toLowerCase().includes(query);
+          const filterMatches =
+            adminCatalogFilter === "all" ||
+            (adminCatalogFilter === "missing" && !modHasDownload(mod)) ||
+            (adminCatalogFilter === "variants" && Boolean(mod.variants?.length));
+
+          return modMatches && filterMatches;
+        });
+
+        return { category, mods };
+      })
+      .filter(({ category, mods }) => {
+        if (mods.length > 0) return true;
+        if (adminCatalogFilter !== "all") return false;
+        return Boolean(
+          adminCatalogQuery.trim() &&
+          `${category.id} ${category.title} ${category.description}`
+            .toLowerCase()
+            .includes(adminCatalogQuery.toLowerCase().trim()),
+        );
+      });
+  }, [adminCatalogFilter, adminCatalogQuery, adminCategories]);
+
+  const adminSupportCounts = useMemo(
+    () => ({
+      all: adminSupportTickets.length,
+      answered: adminSupportTickets.filter((ticket) => ticket.status === "answered").length,
+      open: adminSupportTickets.filter((ticket) => ticket.status === "open").length,
+    }),
+    [adminSupportTickets],
+  );
+
+  const adminSupportTicketsView = useMemo(() => {
+    const timeOf = (ticket: SupportTicket) =>
+      Date.parse(ticket.updatedAt || ticket.createdAt || "") || 0;
+
+    return [...adminSupportTickets]
+      .filter((ticket) => adminSupportFilter === "all" || ticket.status === adminSupportFilter)
+      .sort((left, right) => {
+        if (left.status !== right.status) {
+          return left.status === "open" ? -1 : 1;
+        }
+
+        return timeOf(right) - timeOf(left);
+      });
+  }, [adminSupportFilter, adminSupportTickets]);
 
   const releaseManifestJson = useMemo(
     () =>
@@ -1942,6 +2068,53 @@ function App() {
           : category,
       ),
     );
+  }
+
+  function applyAdminVariantUrls(categoryId: string, modId: string) {
+    const draftKey = `${categoryId}:${modId}`;
+    const urls = (variantUrlDrafts[draftKey] || "")
+      .split(/\r?\n/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+
+    if (urls.length === 0) {
+      setStatus("Вставь ссылки на ZIP по одной строке");
+      return;
+    }
+
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) => {
+                if (mod.id !== modId) return mod;
+
+                const variants = [...(mod.variants || [])];
+
+                urls.forEach((url, index) => {
+                  variants[index] = {
+                    ...(variants[index] || createAdminVariant(index + 1)),
+                    downloadUrl: url,
+                  };
+                });
+
+                return {
+                  ...mod,
+                  variants,
+                };
+              }),
+            }
+          : category,
+      ),
+    );
+
+    setVariantUrlDrafts((current) => {
+      const next = { ...current };
+      delete next[draftKey];
+      return next;
+    });
+    setStatus(`Добавлено ссылок вариантов: ${urls.length}`);
   }
 
   function updateAdminVariant(
@@ -3307,7 +3480,7 @@ function App() {
 
             <div className="hero-rail-stage relative h-full min-h-0">
               {[0, 1].map((lane) => {
-                const laneMods = [...heroMods, ...heroMods, ...heroMods];
+                const laneMods = heroRailMods[lane] || [];
 
                 return (
                   <div
@@ -3789,7 +3962,7 @@ function App() {
               <div className="mod-detail-info">
                 <div className="catalog-kicker">Карточка мода</div>
                 <h2>{selectedMod.name}</h2>
-                <p>{selectedMod.description || "Описание мода пока не заполнено в каталоге."}</p>
+                <ModDescriptionPanel description={selectedMod.description} />
 
                 <div className="mod-detail-actions">
                   <div className="mod-detail-install-options">
@@ -4013,7 +4186,37 @@ function App() {
                   </PurpleButton>
                 </div>
 
-                {adminCategories.map((category) => (
+                <div className="admin-list-toolbar">
+                  <SearchBox value={adminCatalogQuery} onChange={setAdminCatalogQuery} />
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButton
+                      active={adminCatalogFilter === "all"}
+                      onClick={() => setAdminCatalogFilter("all")}
+                    >
+                      Все
+                    </FilterButton>
+                    <FilterButton
+                      active={adminCatalogFilter === "missing"}
+                      onClick={() => setAdminCatalogFilter("missing")}
+                    >
+                      Без ссылок
+                    </FilterButton>
+                    <FilterButton
+                      active={adminCatalogFilter === "variants"}
+                      onClick={() => setAdminCatalogFilter("variants")}
+                    >
+                      С вариантами
+                    </FilterButton>
+                  </div>
+                </div>
+
+                {adminCatalogView.length === 0 && (
+                  <div className="rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/45">
+                    По этому поиску ничего не найдено.
+                  </div>
+                )}
+
+                {adminCatalogView.map(({ category, mods }) => (
                   <div
                     key={category.id}
                     className="rounded-3xl border border-white/10 bg-black/25 p-5"
@@ -4022,7 +4225,7 @@ function App() {
                       <div>
                         <div className="text-xl font-black">{category.title || category.id}</div>
                         <div className="text-sm text-white/40">
-                          {category.mods.length} модов в категории
+                          {mods.length} из {category.mods.length} модов показано
                         </div>
                       </div>
 
@@ -4065,7 +4268,7 @@ function App() {
                     </div>
 
                     <div className="mt-5 space-y-4">
-                      {category.mods.map((mod) => (
+                      {mods.map((mod) => (
                         <div key={mod.id} className="rounded-2xl border border-white/10 p-4">
                           <div className="mb-4 flex items-center justify-between gap-4">
                             <div className="font-black">{mod.name || mod.id}</div>
@@ -4126,6 +4329,9 @@ function App() {
                             value={mod.description}
                             onChange={(value) =>
                               updateAdminMod(category.id, mod.id, "description", value)
+                            }
+                            placeholder={
+                              "Проделанная работа:\nFps boost\nОптимизированные таймциклы\nУбрана тряска при взрыве"
                             }
                             multiline
                           />
@@ -4249,6 +4455,27 @@ function App() {
                                 версии, добавь Светлый / Темный и вставь ссылки на ZIP.
                               </div>
                             )}
+
+                            <div className="variant-url-bulk mt-4">
+                              <textarea
+                                value={variantUrlDrafts[`${category.id}:${mod.id}`] || ""}
+                                onChange={(event) =>
+                                  setVariantUrlDrafts((current) => ({
+                                    ...current,
+                                    [`${category.id}:${mod.id}`]: event.target.value,
+                                  }))
+                                }
+                                placeholder={
+                                  "Вставь ссылки ZIP по одной строке:\nhttps://.../light.zip\nhttps://.../dark.zip"
+                                }
+                              />
+                              <button
+                                type="button"
+                                onClick={() => applyAdminVariantUrls(category.id, mod.id)}
+                              >
+                                Разнести ссылки по вариантам
+                              </button>
+                            </div>
 
                             <div className="space-y-4">
                               {(mod.variants || []).map((variant, variantIndex) => (
@@ -4563,20 +4790,43 @@ function App() {
                     </PrimaryButton>
                   </div>
 
+                  <div className="admin-support-toolbar">
+                    <FilterButton
+                      active={adminSupportFilter === "open"}
+                      onClick={() => setAdminSupportFilter("open")}
+                    >
+                      Новые {adminSupportCounts.open}
+                    </FilterButton>
+                    <FilterButton
+                      active={adminSupportFilter === "answered"}
+                      onClick={() => setAdminSupportFilter("answered")}
+                    >
+                      Отвеченные {adminSupportCounts.answered}
+                    </FilterButton>
+                    <FilterButton
+                      active={adminSupportFilter === "all"}
+                      onClick={() => setAdminSupportFilter("all")}
+                    >
+                      Все {adminSupportCounts.all}
+                    </FilterButton>
+                  </div>
+
                   <div className="admin-support-list">
-                    {adminSupportTickets.length === 0 ? (
+                    {adminSupportTicketsView.length === 0 ? (
                       <div className="rounded-2xl border border-white/10 p-3 text-sm text-white/40">
                         Заявок пока нет.
                       </div>
                     ) : (
-                      adminSupportTickets.map((ticket) => (
+                      adminSupportTicketsView.map((ticket) => (
                         <div key={ticket.id} className="admin-support-ticket">
                           <div className="mb-2 flex items-center justify-between gap-3">
                             <div>
                               <div className="font-black">{ticket.username || "Пользователь"}</div>
                               <div className="font-mono text-xs text-white/35">{ticket.userId}</div>
                             </div>
-                            <span className="support-status-chip">
+                            <span
+                              className={`support-status-chip support-status-chip--${ticket.status}`}
+                            >
                               {ticket.status === "answered" ? "отвечено" : "новое"}
                             </span>
                           </div>
@@ -5371,6 +5621,36 @@ function DashboardCard({
   );
 }
 
+function ModDescriptionPanel({
+  description,
+  compact = false,
+}: {
+  description: string;
+  compact?: boolean;
+}) {
+  const parts = getDescriptionParts(description);
+  const visibleItems = compact ? parts.items.slice(0, 4) : parts.items;
+
+  return (
+    <div className={`mod-description ${compact ? "mod-description--compact" : ""}`}>
+      {!compact && <div className="mod-description-kicker">{parts.title}</div>}
+
+      {visibleItems.length > 0 ? (
+        <div className="mod-description-list">
+          {visibleItems.map((item, index) => (
+            <div key={`${item}-${index}`} className="mod-description-item">
+              <span>{index + 1}</span>
+              <p>{item}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>{parts.intro}</p>
+      )}
+    </div>
+  );
+}
+
 function ModCard({
   item,
   installed,
@@ -5418,7 +5698,7 @@ function ModCard({
 
       <div className="p-6">
         <h3 className="text-3xl font-black">{item.name}</h3>
-        <p className="mt-3 text-white/55">{item.description}</p>
+        <ModDescriptionPanel description={item.description} compact />
         <p className="mt-3 text-white/35">
           {item.size}
           {installed && (
@@ -5615,11 +5895,13 @@ function AdminField({
   value,
   onChange,
   multiline = false,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   multiline?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -5630,12 +5912,14 @@ function AdminField({
         <textarea
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
           className="min-h-24 w-full resize-y rounded-2xl border border-white/10 bg-black/35 px-4 py-3 outline-none"
         />
       ) : (
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
           className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 outline-none"
         />
       )}
