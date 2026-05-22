@@ -8,6 +8,7 @@ use std::{
     io::{copy, Write},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
+    time::UNIX_EPOCH,
 };
 
 use tauri::{Emitter, Manager};
@@ -24,7 +25,13 @@ struct ModItem {
     description: String,
     size: String,
     image: Option<String>,
-    #[serde(default, alias = "download_url", alias = "url", alias = "zipUrl", alias = "zip_url")]
+    #[serde(
+        default,
+        alias = "download_url",
+        alias = "url",
+        alias = "zipUrl",
+        alias = "zip_url"
+    )]
     download_url: String,
     #[serde(default, alias = "rpf_patches")]
     rpf_patches: Option<Vec<RpfPatch>>,
@@ -39,7 +46,13 @@ struct ModVariant {
     id: String,
     #[serde(default, alias = "label", alias = "title")]
     name: String,
-    #[serde(default, alias = "download_url", alias = "url", alias = "zipUrl", alias = "zip_url")]
+    #[serde(
+        default,
+        alias = "download_url",
+        alias = "url",
+        alias = "zipUrl",
+        alias = "zip_url"
+    )]
     download_url: String,
     #[serde(default, alias = "rpf_patches")]
     rpf_patches: Option<Vec<RpfPatch>>,
@@ -66,9 +79,21 @@ struct Category {
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
+struct InstalledFileFingerprint {
+    path: String,
+    #[serde(default)]
+    size: u64,
+    #[serde(default)]
+    modified: u64,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 struct InstalledMod {
     version: String,
     files: Vec<String>,
+    #[serde(default)]
+    fingerprints: Vec<InstalledFileFingerprint>,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
@@ -269,7 +294,7 @@ fn reconcile_installed_state(mut state: AppState) -> AppState {
 
     state
         .installed_redux
-        .retain(|_, installed| is_mod_really_installed(&gta_dir, &installed.files));
+        .retain(|_, installed| is_mod_really_installed(&gta_dir, installed));
 
     state
 }
@@ -506,7 +531,10 @@ fn patch_source_path(
         return Ok(from_install_root);
     }
 
-    Err(format!("RPF patch source file not found in zip: {}", patch_file))
+    Err(format!(
+        "RPF patch source file not found in zip: {}",
+        patch_file
+    ))
 }
 
 fn excluded_patch_files(install_root: &Path, patch_sources: &[PathBuf]) -> HashSet<String> {
@@ -696,7 +724,7 @@ fn apply_rpf_patches(
     Ok(patched_rpfs)
 }
 
-fn is_mod_really_installed(gta_path: &Path, files: &[String]) -> bool {
+fn files_exist(gta_path: &Path, files: &[String]) -> bool {
     if files.is_empty() {
         return false;
     }
@@ -713,6 +741,74 @@ fn is_mod_really_installed(gta_path: &Path, files: &[String]) -> bool {
     }
 
     true
+}
+
+fn metadata_modified_ms(metadata: &fs::Metadata) -> u64 {
+    metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn fingerprint_installed_file(
+    gta_path: &Path,
+    relative_path: &str,
+) -> Result<InstalledFileFingerprint, String> {
+    let path = safe_join(gta_path, relative_path)?;
+    let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
+
+    Ok(InstalledFileFingerprint {
+        path: relative_path.replace('\\', "/"),
+        size: metadata.len(),
+        modified: metadata_modified_ms(&metadata),
+    })
+}
+
+fn build_file_fingerprints(
+    gta_path: &Path,
+    files: &[String],
+) -> Result<Vec<InstalledFileFingerprint>, String> {
+    files
+        .iter()
+        .map(|file| fingerprint_installed_file(gta_path, file))
+        .collect()
+}
+
+fn fingerprint_matches(gta_path: &Path, fingerprint: &InstalledFileFingerprint) -> bool {
+    let path = match safe_join(gta_path, &fingerprint.path) {
+        Ok(path) => path,
+        Err(_) => return false,
+    };
+
+    let metadata = match fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(_) => return false,
+    };
+
+    metadata.len() == fingerprint.size && metadata_modified_ms(&metadata) == fingerprint.modified
+}
+
+fn is_rpf_manifest(files: &[String]) -> bool {
+    files
+        .iter()
+        .any(|file| file.to_lowercase().ends_with(".rpf"))
+}
+
+fn is_mod_really_installed(gta_path: &Path, installed: &InstalledMod) -> bool {
+    if !installed.fingerprints.is_empty() {
+        return installed
+            .fingerprints
+            .iter()
+            .all(|fingerprint| fingerprint_matches(gta_path, fingerprint));
+    }
+
+    if is_rpf_manifest(&installed.files) {
+        return false;
+    }
+
+    files_exist(gta_path, &installed.files)
 }
 
 async fn download_file_stream(
@@ -828,9 +924,11 @@ fn install_zip_blocking(
         return Err("Файлы не установились".to_string());
     }
 
-    if !is_mod_really_installed(&gta_dir, &installed_files) {
+    if !files_exist(&gta_dir, &installed_files) {
         return Err("Установка не завершилась".to_string());
     }
+
+    let fingerprints = build_file_fingerprints(&gta_dir, &installed_files)?;
 
     state.gta_path = gta_dir.to_string_lossy().to_string();
 
@@ -839,8 +937,11 @@ fn install_zip_blocking(
         InstalledMod {
             version: redux_version,
             files: installed_files,
+            fingerprints,
         },
     );
+
+    state = reconcile_installed_state(state);
 
     save_state_file(&state)?;
 
@@ -865,16 +966,7 @@ async fn install_redux(
         return Err("Закрой GTA V перед установкой".to_string());
     }
 
-    let gta_dir = validate_gta_path(&gta_path)?;
-
-    let state = load_state_file();
-
-    if let Some(installed) = state.installed_redux.get(&redux_id) {
-        if installed.version == redux_version && is_mod_really_installed(&gta_dir, &installed.files)
-        {
-            return Err("Этот мод уже установлен".to_string());
-        }
-    }
+    validate_gta_path(&gta_path)?;
 
     let root = app_root()?;
     let downloads_dir = root.join("downloads");

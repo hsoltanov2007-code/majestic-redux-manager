@@ -56,9 +56,16 @@ import {
 
 import "./styles.css";
 
+type InstalledFileFingerprint = {
+  path: string;
+  size: number;
+  modified: number;
+};
+
 type InstalledMod = {
   version: string;
   files: string[];
+  fingerprints?: InstalledFileFingerprint[];
 };
 
 type AppState = {
@@ -246,7 +253,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.76";
+const APP_VERSION = "0.1.77";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -407,6 +414,11 @@ function getInstallVersion(mod: ModItem, variant?: ModVariant) {
   return variant ? `${mod.version}${MOD_VARIANT_VERSION_MARKER}${variant.id}` : mod.version;
 }
 
+function getVariantRpfPatches(mod: ModItem, variant?: ModVariant) {
+  if (variant?.rpfPatches?.length) return variant.rpfPatches;
+  return mod.rpfPatches ?? [];
+}
+
 function getDisplayVersion(version: string) {
   const markerIndex = version.indexOf(MOD_VARIANT_VERSION_MARKER);
   return markerIndex >= 0 ? version.slice(0, markerIndex) : version;
@@ -420,7 +432,7 @@ function getInstallOptions(mod: ModItem) {
       downloadUrl: variant.downloadUrl,
       key: variant.id,
       label: variant.name || variant.id,
-      rpfPatches: variant.rpfPatches ?? mod.rpfPatches ?? [],
+      rpfPatches: getVariantRpfPatches(mod, variant),
       variant,
       version: getInstallVersion(mod, variant),
     }));
@@ -481,9 +493,47 @@ function getInstallButtonLabel(
   option: ReturnType<typeof getInstallOptions>[number],
   hasVariants: boolean,
 ) {
-  if (installed?.version === option.version) return "Установлено";
+  if (installed?.version === option.version) return "Переустановить";
   if (installed) return hasVariants ? `Заменить: ${option.label}` : "Обновить";
   return hasVariants ? option.label : "Установить";
+}
+
+function getAdminModKey(categoryId: string, modId: string) {
+  return `${categoryId}::${modId}`;
+}
+
+function getAdminModDomId(key: string) {
+  return `admin-mod-${key.replace(/[^a-z0-9_-]+/gi, "-")}`;
+}
+
+function getRpfPatchSearchText(patch: RpfPatch) {
+  return `${patch.rpfPath} ${patch.internalPath} ${patch.file}`;
+}
+
+function getModSearchText(mod: ModItem) {
+  const variantsText = (mod.variants || [])
+    .map(
+      (variant) =>
+        `${variant.id} ${variant.name} ${variant.downloadUrl} ${(variant.rpfPatches || [])
+          .map(getRpfPatchSearchText)
+          .join(" ")}`,
+    )
+    .join(" ");
+  const patchesText = (mod.rpfPatches || []).map(getRpfPatchSearchText).join(" ");
+
+  return [
+    mod.id,
+    mod.name,
+    mod.description,
+    mod.version,
+    mod.size,
+    mod.image || "",
+    mod.downloadUrl,
+    variantsText,
+    patchesText,
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function getModContentItems(mod: ModItem) {
@@ -1230,6 +1280,7 @@ function App() {
   const [variantUrlDrafts, setVariantUrlDrafts] = useState<Record<string, string>>({});
   const [adminCatalogQuery, setAdminCatalogQuery] = useState("");
   const [adminCatalogFilter, setAdminCatalogFilter] = useState<AdminCatalogFilter>("all");
+  const [activeAdminModKey, setActiveAdminModKey] = useState("");
 
   const [gtaPath, setGtaPath] = useState("");
   const [systemPath, setSystemPath] = useState("");
@@ -1649,10 +1700,7 @@ function App() {
           .toLowerCase()
           .includes(query);
         const mods = category.mods.filter((mod) => {
-          const modMatches =
-            !query ||
-            categoryMatches ||
-            `${mod.id} ${mod.name} ${mod.description} ${mod.version}`.toLowerCase().includes(query);
+          const modMatches = !query || categoryMatches || getModSearchText(mod).includes(query);
           const filterMatches =
             adminCatalogFilter === "all" ||
             (adminCatalogFilter === "missing" && !modHasDownload(mod)) ||
@@ -1698,6 +1746,31 @@ function App() {
         return timeOf(right) - timeOf(left);
       });
   }, [adminSupportFilter, adminSupportTickets]);
+
+  const adminModQuickList = useMemo(
+    () =>
+      adminCatalogView.flatMap(({ category, mods }) =>
+        mods.map((mod) => ({
+          category,
+          key: getAdminModKey(category.id, mod.id),
+          mod,
+        })),
+      ),
+    [adminCatalogView],
+  );
+
+  useEffect(() => {
+    if (page !== "admin") return;
+
+    if (adminModQuickList.length === 0) {
+      if (activeAdminModKey) setActiveAdminModKey("");
+      return;
+    }
+
+    if (!adminModQuickList.some((item) => item.key === activeAdminModKey)) {
+      setActiveAdminModKey(adminModQuickList[0].key);
+    }
+  }, [activeAdminModKey, adminModQuickList, page]);
 
   const releaseManifestJson = useMemo(
     () =>
@@ -1819,6 +1892,11 @@ function App() {
     }
   }
 
+  async function refreshInstalledReduxState() {
+    await loadState();
+    setStatus("Статус установленных модов проверен");
+  }
+
   async function loadCategories() {
     try {
       setLoading(true);
@@ -1885,6 +1963,17 @@ function App() {
     setSelectedMod(null);
     setPage("admin");
     void loadAdminDashboardData();
+  }
+
+  function selectAdminMod(key: string) {
+    setActiveAdminModKey(key);
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(getAdminModDomId(key))?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   function syncAdminFromCatalog() {
@@ -3030,7 +3119,7 @@ function App() {
     const installVersion = getInstallVersion(item, variant);
     const installName = variant ? `${item.name} (${variant.name})` : item.name;
     const downloadUrl = (variant?.downloadUrl || item.downloadUrl).trim();
-    const rpfPatches = variant?.rpfPatches ?? item.rpfPatches ?? [];
+    const rpfPatches = getVariantRpfPatches(item, variant);
 
     if (!downloadUrl) {
       setStatus(`Для ${installName} не указана ссылка на архив`);
@@ -3038,11 +3127,6 @@ function App() {
     }
 
     const installed = installedRedux[item.id];
-
-    if (installed?.version === installVersion) {
-      setStatus(`${installName} уже установлен`);
-      return;
-    }
 
     try {
       setLoading(true);
@@ -3658,6 +3742,10 @@ function App() {
                 <FilterButton active={false} onClick={() => void loadCategories()}>
                   Обновить
                 </FilterButton>
+
+                <FilterButton active={false} onClick={() => void refreshInstalledReduxState()}>
+                  Проверить установки
+                </FilterButton>
               </div>
             </div>
 
@@ -3973,7 +4061,7 @@ function App() {
                       return (
                         <PrimaryButton
                           key={option.key}
-                          disabled={loading || optionInstalled || !option.downloadUrl.trim()}
+                          disabled={loading || !option.downloadUrl.trim()}
                           onClick={() => installRedux(selectedMod, option.variant)}
                         >
                           <Download size={18} />
@@ -4208,6 +4296,25 @@ function App() {
                       С вариантами
                     </FilterButton>
                   </div>
+                  <div className="admin-quick-select">
+                    <ListTree size={18} />
+                    <select
+                      value={activeAdminModKey}
+                      onChange={(event) => selectAdminMod(event.target.value)}
+                      disabled={adminModQuickList.length === 0}
+                    >
+                      {adminModQuickList.length === 0 ? (
+                        <option value="">Моды не найдены</option>
+                      ) : (
+                        adminModQuickList.map(({ category, key, mod }) => (
+                          <option key={key} value={key}>
+                            {category.title || category.id} / {mod.name || mod.id}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <span>{adminModQuickList.length} найдено</span>
+                  </div>
                 </div>
 
                 {adminCatalogView.length === 0 && (
@@ -4268,381 +4375,429 @@ function App() {
                     </div>
 
                     <div className="mt-5 space-y-4">
-                      {mods.map((mod) => (
-                        <div key={mod.id} className="rounded-2xl border border-white/10 p-4">
-                          <div className="mb-4 flex items-center justify-between gap-4">
-                            <div className="font-black">{mod.name || mod.id}</div>
+                      {mods.map((mod) => {
+                        const modKey = getAdminModKey(category.id, mod.id);
+                        const isActiveMod = activeAdminModKey === modKey;
+                        const modRpfCount = mod.rpfPatches?.length ?? 0;
+                        const modVariantCount = mod.variants?.length ?? 0;
+
+                        return (
+                          <div
+                            key={mod.id}
+                            id={getAdminModDomId(modKey)}
+                            className={`admin-mod-editor ${
+                              isActiveMod ? "admin-mod-editor--active" : ""
+                            }`}
+                          >
                             <button
                               type="button"
-                              onClick={() => removeAdminMod(category.id, mod.id)}
-                              className="grid h-10 w-10 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                              className="admin-mod-summary"
+                              onClick={() => selectAdminMod(modKey)}
                             >
-                              <Trash2 size={16} />
+                              <div>
+                                <div className="admin-mod-summary-title">{mod.name || mod.id}</div>
+                                <div className="admin-mod-summary-meta">
+                                  <span>{mod.id}</span>
+                                  <span>v{mod.version}</span>
+                                  <span>{modVariantCount} вариантов</span>
+                                  <span>{modRpfCount} RPF</span>
+                                  {!modHasDownload(mod) && (
+                                    <span className="text-red-200">нет ссылки</span>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight size={20} />
                             </button>
-                          </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                            <AdminField
-                              label="ID мода"
-                              value={mod.id}
-                              onChange={(value) => updateAdminMod(category.id, mod.id, "id", value)}
-                            />
-                            <AdminField
-                              label="Название"
-                              value={mod.name}
-                              onChange={(value) =>
-                                updateAdminMod(category.id, mod.id, "name", value)
-                              }
-                            />
-                            <AdminField
-                              label="Версия"
-                              value={mod.version}
-                              onChange={(value) =>
-                                updateAdminMod(category.id, mod.id, "version", value)
-                              }
-                            />
-                            <AdminField
-                              label="Размер"
-                              value={mod.size}
-                              onChange={(value) =>
-                                updateAdminMod(category.id, mod.id, "size", value)
-                              }
-                            />
-                            <AdminField
-                              label="Ссылка на картинку"
-                              value={mod.image || ""}
-                              onChange={(value) =>
-                                updateAdminMod(category.id, mod.id, "image", value)
-                              }
-                            />
-                            <AdminField
-                              label="Ссылка на скачивание"
-                              value={mod.downloadUrl}
-                              onChange={(value) =>
-                                updateAdminMod(category.id, mod.id, "downloadUrl", value)
-                              }
-                            />
-                          </div>
-
-                          <AdminField
-                            label="Описание"
-                            value={mod.description}
-                            onChange={(value) =>
-                              updateAdminMod(category.id, mod.id, "description", value)
-                            }
-                            placeholder={
-                              "Проделанная работа:\nFps boost\nОптимизированные таймциклы\nУбрана тряска при взрыве"
-                            }
-                            multiline
-                          />
-
-                          <div className="mt-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <div className="font-black">Замены RPF</div>
-                                <div className="text-xs text-white/45">
-                                  Путь может начинаться с update/update.rpf; приложение также
-                                  проверяет mods/update/update.rpf
-                                </div>
-                              </div>
-                              <PrimaryButton onClick={() => addAdminRpfPatch(category.id, mod.id)}>
-                                <Plus size={18} />
-                                Замена RPF
-                              </PrimaryButton>
-                            </div>
-
-                            {(mod.rpfPatches || []).length === 0 && (
-                              <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
-                                Замен RPF нет. Мод скопирует обычные файлы из архива.
-                              </div>
-                            )}
-
-                            <div className="space-y-3">
-                              {(mod.rpfPatches || []).map((patch, patchIndex) => (
-                                <div
-                                  key={`${mod.id}-rpf-${patchIndex}`}
-                                  className="rounded-xl border border-white/10 bg-black/25 p-3"
-                                >
-                                  <div className="mb-3 flex items-center justify-between gap-3">
-                                    <div className="text-sm font-black">
-                                      Замена #{patchIndex + 1}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        removeAdminRpfPatch(category.id, mod.id, patchIndex)
-                                      }
-                                      className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-
-                                  <div className="grid grid-cols-3 gap-3">
-                                    <AdminField
-                                      label="Путь RPF"
-                                      value={patch.rpfPath}
-                                      onChange={(value) =>
-                                        updateAdminRpfPatch(
-                                          category.id,
-                                          mod.id,
-                                          patchIndex,
-                                          "rpfPath",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                    <AdminField
-                                      label="Путь внутри архива"
-                                      value={patch.internalPath}
-                                      onChange={(value) =>
-                                        updateAdminRpfPatch(
-                                          category.id,
-                                          mod.id,
-                                          patchIndex,
-                                          "internalPath",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                    <AdminField
-                                      label="Файл в архиве"
-                                      value={patch.file}
-                                      onChange={(value) =>
-                                        updateAdminRpfPatch(
-                                          category.id,
-                                          mod.id,
-                                          patchIndex,
-                                          "file",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-4 rounded-2xl border border-pink-300/20 bg-pink-300/10 p-4">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <div className="font-black">Варианты установки</div>
-                                <div className="text-xs text-white/45">
-                                  Для светлой, темной или другой версии можно указать отдельный ZIP
-                                  и свои замены RPF. В карточке появятся отдельные кнопки.
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap justify-end gap-2">
-                                {(mod.variants || []).length === 0 && (
-                                  <PrimaryButton
-                                    onClick={() => addAdminVariantPair(category.id, mod.id)}
+                            {isActiveMod && (
+                              <div className="admin-mod-editor-body">
+                                <div className="mb-4 flex items-center justify-between gap-4">
+                                  <div className="font-black">{mod.name || mod.id}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeAdminMod(category.id, mod.id)}
+                                    className="grid h-10 w-10 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
                                   >
-                                    <Plus size={18} />
-                                    Светлый / Темный
-                                  </PrimaryButton>
-                                )}
-                                <PurpleButton onClick={() => addAdminVariant(category.id, mod.id)}>
-                                  <Plus size={18} />
-                                  Вариант
-                                </PurpleButton>
-                              </div>
-                            </div>
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
 
-                            {(mod.variants || []).length === 0 && (
-                              <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
-                                Если у мода один архив, оставь варианты пустыми. Если есть две
-                                версии, добавь Светлый / Темный и вставь ссылки на ZIP.
-                              </div>
-                            )}
+                                <div className="grid grid-cols-2 gap-4">
+                                  <AdminField
+                                    label="ID мода"
+                                    value={mod.id}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "id", value)
+                                    }
+                                  />
+                                  <AdminField
+                                    label="Название"
+                                    value={mod.name}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "name", value)
+                                    }
+                                  />
+                                  <AdminField
+                                    label="Версия"
+                                    value={mod.version}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "version", value)
+                                    }
+                                  />
+                                  <AdminField
+                                    label="Размер"
+                                    value={mod.size}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "size", value)
+                                    }
+                                  />
+                                  <AdminField
+                                    label="Ссылка на картинку"
+                                    value={mod.image || ""}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "image", value)
+                                    }
+                                  />
+                                  <AdminField
+                                    label="Ссылка на скачивание"
+                                    value={mod.downloadUrl}
+                                    onChange={(value) =>
+                                      updateAdminMod(category.id, mod.id, "downloadUrl", value)
+                                    }
+                                  />
+                                </div>
 
-                            <div className="variant-url-bulk mt-4">
-                              <textarea
-                                value={variantUrlDrafts[`${category.id}:${mod.id}`] || ""}
-                                onChange={(event) =>
-                                  setVariantUrlDrafts((current) => ({
-                                    ...current,
-                                    [`${category.id}:${mod.id}`]: event.target.value,
-                                  }))
-                                }
-                                placeholder={
-                                  "Вставь ссылки ZIP по одной строке:\nhttps://.../light.zip\nhttps://.../dark.zip"
-                                }
-                              />
-                              <button
-                                type="button"
-                                onClick={() => applyAdminVariantUrls(category.id, mod.id)}
-                              >
-                                Разнести ссылки по вариантам
-                              </button>
-                            </div>
+                                <AdminField
+                                  label="Описание"
+                                  value={mod.description}
+                                  onChange={(value) =>
+                                    updateAdminMod(category.id, mod.id, "description", value)
+                                  }
+                                  placeholder={
+                                    "Проделанная работа:\nFps boost\nОптимизированные таймциклы\nУбрана тряска при взрыве"
+                                  }
+                                  multiline
+                                />
 
-                            <div className="space-y-4">
-                              {(mod.variants || []).map((variant, variantIndex) => (
-                                <div
-                                  key={`${mod.id}-variant-${variant.id}-${variantIndex}`}
-                                  className="rounded-xl border border-white/10 bg-black/25 p-3"
-                                >
-                                  <div className="mb-3 flex items-center justify-between gap-3">
-                                    <div className="text-sm font-black">
-                                      {variant.name || `Вариант ${variantIndex + 1}`}
+                                <div className="mt-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
+                                  <div className="mb-4 flex items-center justify-between gap-3">
+                                    <div>
+                                      <div className="font-black">Замены RPF</div>
+                                      <div className="text-xs text-white/45">
+                                        Путь может начинаться с update/update.rpf; приложение также
+                                        проверяет mods/update/update.rpf
+                                      </div>
                                     </div>
+                                    <PrimaryButton
+                                      onClick={() => addAdminRpfPatch(category.id, mod.id)}
+                                    >
+                                      <Plus size={18} />
+                                      Замена RPF
+                                    </PrimaryButton>
+                                  </div>
+
+                                  {(mod.rpfPatches || []).length === 0 && (
+                                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
+                                      Замен RPF нет. Мод скопирует обычные файлы из архива.
+                                    </div>
+                                  )}
+
+                                  <div className="space-y-3">
+                                    {(mod.rpfPatches || []).map((patch, patchIndex) => (
+                                      <div
+                                        key={`${mod.id}-rpf-${patchIndex}`}
+                                        className="rounded-xl border border-white/10 bg-black/25 p-3"
+                                      >
+                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                          <div className="text-sm font-black">
+                                            Замена #{patchIndex + 1}
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeAdminRpfPatch(category.id, mod.id, patchIndex)
+                                            }
+                                            className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                          >
+                                            <Trash2 size={15} />
+                                          </button>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                          <AdminField
+                                            label="Путь RPF"
+                                            value={patch.rpfPath}
+                                            onChange={(value) =>
+                                              updateAdminRpfPatch(
+                                                category.id,
+                                                mod.id,
+                                                patchIndex,
+                                                "rpfPath",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                          <AdminField
+                                            label="Путь внутри архива"
+                                            value={patch.internalPath}
+                                            onChange={(value) =>
+                                              updateAdminRpfPatch(
+                                                category.id,
+                                                mod.id,
+                                                patchIndex,
+                                                "internalPath",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                          <AdminField
+                                            label="Файл в архиве"
+                                            value={patch.file}
+                                            onChange={(value) =>
+                                              updateAdminRpfPatch(
+                                                category.id,
+                                                mod.id,
+                                                patchIndex,
+                                                "file",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 rounded-2xl border border-pink-300/20 bg-pink-300/10 p-4">
+                                  <div className="mb-4 flex items-center justify-between gap-3">
+                                    <div>
+                                      <div className="font-black">Варианты установки</div>
+                                      <div className="text-xs text-white/45">
+                                        Для светлой, темной или другой версии можно указать
+                                        отдельный ZIP и свои замены RPF. В карточке появятся
+                                        отдельные кнопки.
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap justify-end gap-2">
+                                      {(mod.variants || []).length === 0 && (
+                                        <PrimaryButton
+                                          onClick={() => addAdminVariantPair(category.id, mod.id)}
+                                        >
+                                          <Plus size={18} />
+                                          Светлый / Темный
+                                        </PrimaryButton>
+                                      )}
+                                      <PurpleButton
+                                        onClick={() => addAdminVariant(category.id, mod.id)}
+                                      >
+                                        <Plus size={18} />
+                                        Вариант
+                                      </PurpleButton>
+                                    </div>
+                                  </div>
+
+                                  {(mod.variants || []).length === 0 && (
+                                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/45">
+                                      Если у мода один архив, оставь варианты пустыми. Если есть две
+                                      версии, добавь Светлый / Темный и вставь ссылки на ZIP.
+                                    </div>
+                                  )}
+
+                                  <div className="variant-url-bulk mt-4">
+                                    <textarea
+                                      value={variantUrlDrafts[`${category.id}:${mod.id}`] || ""}
+                                      onChange={(event) =>
+                                        setVariantUrlDrafts((current) => ({
+                                          ...current,
+                                          [`${category.id}:${mod.id}`]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder={
+                                        "Вставь ссылки ZIP по одной строке:\nhttps://.../light.zip\nhttps://.../dark.zip"
+                                      }
+                                    />
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        removeAdminVariant(category.id, mod.id, variantIndex)
-                                      }
-                                      className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                      onClick={() => applyAdminVariantUrls(category.id, mod.id)}
                                     >
-                                      <Trash2 size={15} />
+                                      Разнести ссылки по вариантам
                                     </button>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-3">
-                                    <AdminField
-                                      label="ID варианта"
-                                      value={variant.id}
-                                      onChange={(value) =>
-                                        updateAdminVariant(
-                                          category.id,
-                                          mod.id,
-                                          variantIndex,
-                                          "id",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                    <AdminField
-                                      label="Название кнопки"
-                                      value={variant.name}
-                                      onChange={(value) =>
-                                        updateAdminVariant(
-                                          category.id,
-                                          mod.id,
-                                          variantIndex,
-                                          "name",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                    <AdminField
-                                      label="Ссылка на ZIP"
-                                      value={variant.downloadUrl}
-                                      onChange={(value) =>
-                                        updateAdminVariant(
-                                          category.id,
-                                          mod.id,
-                                          variantIndex,
-                                          "downloadUrl",
-                                          value,
-                                        )
-                                      }
-                                    />
-                                  </div>
-
-                                  <div className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/10 p-3">
-                                    <div className="mb-3 flex items-center justify-between gap-3">
-                                      <div className="text-sm font-black">
-                                        Замены RPF для этого варианта
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          addAdminVariantRpfPatch(category.id, mod.id, variantIndex)
-                                        }
-                                        className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black hover:bg-white/15"
+                                  <div className="space-y-4">
+                                    {(mod.variants || []).map((variant, variantIndex) => (
+                                      <div
+                                        key={`${mod.id}-variant-${variant.id}-${variantIndex}`}
+                                        className="rounded-xl border border-white/10 bg-black/25 p-3"
                                       >
-                                        + RPF
-                                      </button>
-                                    </div>
+                                        <div className="mb-3 flex items-center justify-between gap-3">
+                                          <div className="text-sm font-black">
+                                            {variant.name || `Вариант ${variantIndex + 1}`}
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeAdminVariant(category.id, mod.id, variantIndex)
+                                            }
+                                            className="grid h-9 w-9 place-items-center rounded-xl bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                          >
+                                            <Trash2 size={15} />
+                                          </button>
+                                        </div>
 
-                                    {(variant.rpfPatches || []).length === 0 && (
-                                      <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/45">
-                                        Если вариант использует общие замены мода, можно оставить
-                                        пустым.
-                                      </div>
-                                    )}
+                                        <div className="grid grid-cols-3 gap-3">
+                                          <AdminField
+                                            label="ID варианта"
+                                            value={variant.id}
+                                            onChange={(value) =>
+                                              updateAdminVariant(
+                                                category.id,
+                                                mod.id,
+                                                variantIndex,
+                                                "id",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                          <AdminField
+                                            label="Название кнопки"
+                                            value={variant.name}
+                                            onChange={(value) =>
+                                              updateAdminVariant(
+                                                category.id,
+                                                mod.id,
+                                                variantIndex,
+                                                "name",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                          <AdminField
+                                            label="Ссылка на ZIP"
+                                            value={variant.downloadUrl}
+                                            onChange={(value) =>
+                                              updateAdminVariant(
+                                                category.id,
+                                                mod.id,
+                                                variantIndex,
+                                                "downloadUrl",
+                                                value,
+                                              )
+                                            }
+                                          />
+                                        </div>
 
-                                    <div className="space-y-3">
-                                      {(variant.rpfPatches || []).map((patch, patchIndex) => (
-                                        <div
-                                          key={`${variant.id}-rpf-${patchIndex}`}
-                                          className="rounded-lg border border-white/10 bg-black/20 p-3"
-                                        >
+                                        <div className="mt-3 rounded-xl border border-purple-500/15 bg-purple-500/10 p-3">
                                           <div className="mb-3 flex items-center justify-between gap-3">
-                                            <div className="text-xs font-black">
-                                              Замена #{patchIndex + 1}
+                                            <div className="text-sm font-black">
+                                              Замены RPF для этого варианта
                                             </div>
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                removeAdminVariantRpfPatch(
+                                                addAdminVariantRpfPatch(
                                                   category.id,
                                                   mod.id,
                                                   variantIndex,
-                                                  patchIndex,
                                                 )
                                               }
-                                              className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                              className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-black hover:bg-white/15"
                                             >
-                                              <Trash2 size={14} />
+                                              + RPF
                                             </button>
                                           </div>
 
-                                          <div className="grid grid-cols-3 gap-3">
-                                            <AdminField
-                                              label="Путь RPF"
-                                              value={patch.rpfPath}
-                                              onChange={(value) =>
-                                                updateAdminVariantRpfPatch(
-                                                  category.id,
-                                                  mod.id,
-                                                  variantIndex,
-                                                  patchIndex,
-                                                  "rpfPath",
-                                                  value,
-                                                )
-                                              }
-                                            />
-                                            <AdminField
-                                              label="Путь внутри архива"
-                                              value={patch.internalPath}
-                                              onChange={(value) =>
-                                                updateAdminVariantRpfPatch(
-                                                  category.id,
-                                                  mod.id,
-                                                  variantIndex,
-                                                  patchIndex,
-                                                  "internalPath",
-                                                  value,
-                                                )
-                                              }
-                                            />
-                                            <AdminField
-                                              label="Файл в ZIP"
-                                              value={patch.file}
-                                              onChange={(value) =>
-                                                updateAdminVariantRpfPatch(
-                                                  category.id,
-                                                  mod.id,
-                                                  variantIndex,
-                                                  patchIndex,
-                                                  "file",
-                                                  value,
-                                                )
-                                              }
-                                            />
+                                          {(variant.rpfPatches || []).length === 0 && (
+                                            <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/45">
+                                              Если вариант использует общие замены мода, можно
+                                              оставить пустым.
+                                            </div>
+                                          )}
+
+                                          <div className="space-y-3">
+                                            {(variant.rpfPatches || []).map((patch, patchIndex) => (
+                                              <div
+                                                key={`${variant.id}-rpf-${patchIndex}`}
+                                                className="rounded-lg border border-white/10 bg-black/20 p-3"
+                                              >
+                                                <div className="mb-3 flex items-center justify-between gap-3">
+                                                  <div className="text-xs font-black">
+                                                    Замена #{patchIndex + 1}
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      removeAdminVariantRpfPatch(
+                                                        category.id,
+                                                        mod.id,
+                                                        variantIndex,
+                                                        patchIndex,
+                                                      )
+                                                    }
+                                                    className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/15 text-red-200 hover:bg-red-500/25"
+                                                  >
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                </div>
+
+                                                <div className="grid grid-cols-3 gap-3">
+                                                  <AdminField
+                                                    label="Путь RPF"
+                                                    value={patch.rpfPath}
+                                                    onChange={(value) =>
+                                                      updateAdminVariantRpfPatch(
+                                                        category.id,
+                                                        mod.id,
+                                                        variantIndex,
+                                                        patchIndex,
+                                                        "rpfPath",
+                                                        value,
+                                                      )
+                                                    }
+                                                  />
+                                                  <AdminField
+                                                    label="Путь внутри архива"
+                                                    value={patch.internalPath}
+                                                    onChange={(value) =>
+                                                      updateAdminVariantRpfPatch(
+                                                        category.id,
+                                                        mod.id,
+                                                        variantIndex,
+                                                        patchIndex,
+                                                        "internalPath",
+                                                        value,
+                                                      )
+                                                    }
+                                                  />
+                                                  <AdminField
+                                                    label="Файл в ZIP"
+                                                    value={patch.file}
+                                                    onChange={(value) =>
+                                                      updateAdminVariantRpfPatch(
+                                                        category.id,
+                                                        mod.id,
+                                                        variantIndex,
+                                                        patchIndex,
+                                                        "file",
+                                                        value,
+                                                      )
+                                                    }
+                                                  />
+                                                </div>
+                                              </div>
+                                            ))}
                                           </div>
                                         </div>
-                                      ))}
-                                    </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -5063,6 +5218,10 @@ function App() {
               <PrimaryButton onClick={() => checkForAppUpdate(false)}>
                 <RefreshCw size={18} />
                 Проверить обновление
+              </PrimaryButton>
+              <PrimaryButton onClick={() => void refreshInstalledReduxState()}>
+                <CheckCircle2 size={18} />
+                Проверить Redux
               </PrimaryButton>
               <PurpleButton disabled={loading} onClick={installTauriUpdate}>
                 <Download size={18} />
@@ -5734,7 +5893,7 @@ function ModCard({
                 <button
                   key={option.key}
                   type="button"
-                  disabled={loading || optionInstalled || !option.downloadUrl.trim()}
+                  disabled={loading || !option.downloadUrl.trim()}
                   onClick={() => onInstall(option.variant)}
                   className={`mod-action-button flex-1 ${
                     optionInstalled ? "mod-action-button--installed" : ""
