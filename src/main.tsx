@@ -230,6 +230,11 @@ type RpfArchiveEntry = {
   raw?: string;
 };
 
+type AppRuntimeInfo = {
+  version: string;
+  exePath: string;
+};
+
 type AuthAccount = {
   username: string;
   passwordHash: string;
@@ -263,7 +268,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.80";
+const APP_VERSION = "0.1.81";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -1395,6 +1400,7 @@ function App() {
   const [adminMe, setAdminMe] = useState<AdminUser | null>(null);
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
   const [appStats, setAppStats] = useState<AppStats | null>(null);
+  const [runtimeInfo, setRuntimeInfo] = useState<AppRuntimeInfo | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
   const [promoState, setPromoState] = useState<"open" | "closing" | "docked">("open");
   const [supportMessage, setSupportMessage] = useState("");
@@ -1502,6 +1508,12 @@ function App() {
     if (!isTauriRuntime()) return;
 
     let cancelled = false;
+
+    invoke<AppRuntimeInfo>("app_runtime_info")
+      .then((info) => {
+        if (!cancelled) setRuntimeInfo(info);
+      })
+      .catch(() => undefined);
 
     function acceptAdminUrls(urls: string[] | null) {
       if (cancelled || !urls) return;
@@ -3439,10 +3451,10 @@ function App() {
     }
   }
 
-  async function readRpfTree(nextRpfPath: string) {
+  async function readRpfTree(nextRpfPath: string, allowDefaultRetry = true): Promise<boolean> {
     if (!isTauriRuntime()) {
       setStatus("Архивы RPF доступны только в приложении Tauri");
-      return;
+      return false;
     }
 
     try {
@@ -3455,8 +3467,31 @@ function App() {
 
       setRpfEntries(result);
       setStatus(`RPF открыт: ${result.length} файлов`);
+      return true;
     } catch (err) {
-      setStatus("Ошибка архива RPF: " + String(err));
+      const errorText = String(err);
+
+      if (allowDefaultRetry && gtaPath) {
+        try {
+          const defaultRpfPath = await invoke<string>("resolve_default_update_rpf", {
+            gtaPath,
+          });
+
+          if (defaultRpfPath && defaultRpfPath !== nextRpfPath) {
+            setRpfExplorerPath(defaultRpfPath);
+            setRpfCurrentPath("");
+            setInternalPath("");
+            setReplaceFilePath("");
+            setStatus("Первый RPF не открылся, пробую mods/update/update.rpf...");
+            return await readRpfTree(defaultRpfPath, false);
+          }
+        } catch {
+          // Keep the original RPF error below; it is more useful for the user.
+        }
+      }
+
+      setStatus(`Ошибка архива RPF v${APP_VERSION}: ${errorText}`);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -5460,7 +5495,7 @@ function App() {
               <SettingsCard
                 icon={<FileText />}
                 title="Версия приложения"
-                value={`v${APP_VERSION}`}
+                value={runtimeInfo ? `v${runtimeInfo.version}` : `v${APP_VERSION}`}
               />
 
               <SettingsCard
@@ -5481,6 +5516,12 @@ function App() {
                 value={systemPath ? "Выбрано" : "По умолчанию"}
               />
             </div>
+
+            {runtimeInfo && (
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-sm text-white/55">
+                Запущено из: <span className="text-white/80">{runtimeInfo.exePath}</span>
+              </div>
+            )}
 
             <div className="mt-6 flex flex-wrap gap-3">
               <PrimaryButton onClick={() => checkForAppUpdate(false)}>

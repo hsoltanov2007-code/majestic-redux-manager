@@ -123,6 +123,13 @@ struct RpfArchiveEntry {
     raw: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppRuntimeInfo {
+    version: String,
+    exe_path: String,
+}
+
 fn emit_progress(app: &tauri::AppHandle, progress: u64, step: &str) {
     let _ = app.emit(
         "install-progress",
@@ -1211,6 +1218,7 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
     let output = Command::new(exe)
         .arg("list")
         .arg(rpf_path)
+        .current_dir(rpf_path.parent().unwrap_or_else(|| Path::new(".")))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -1229,7 +1237,11 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
     }
 
     if !output.status.success() {
-        return Err(clean_rpf_tool_error(&stdout, &stderr));
+        return Err(format!(
+            "{} Код helper: {}.",
+            clean_rpf_tool_error(&stdout, &stderr),
+            output.status.code().unwrap_or(-1)
+        ));
     }
 
     let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
@@ -1260,6 +1272,18 @@ fn resolve_default_update_rpf(gta_path: String) -> Result<String, String> {
     }
 
     Err("update.rpf не найден в GTA V. Проверь путь к GTA или выбери RPF вручную.".to_string())
+}
+
+#[tauri::command]
+fn app_runtime_info(app: tauri::AppHandle) -> Result<AppRuntimeInfo, String> {
+    let exe_path = std::env::current_exe()
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    Ok(AppRuntimeInfo {
+        version: app.package_info().version.to_string(),
+        exe_path,
+    })
 }
 
 fn resolve_rpf_internal_path(
@@ -1472,6 +1496,7 @@ pub fn run() {
             detect_gta,
             is_gta_running,
             load_redux_list,
+            app_runtime_info,
             resolve_default_update_rpf,
             install_redux,
             restore_backup,
