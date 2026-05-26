@@ -268,7 +268,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.82";
+const APP_VERSION = "0.1.83";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -3470,6 +3470,7 @@ function App() {
       return true;
     } catch (err) {
       const errorText = String(err);
+      let retryError = "";
 
       if (allowDefaultRetry && gtaPath) {
         try {
@@ -3485,12 +3486,12 @@ function App() {
             setStatus("Первый RPF не открылся, пробую mods/update/update.rpf...");
             return await readRpfTree(defaultRpfPath, false);
           }
-        } catch {
-          // Keep the original RPF error below; it is more useful for the user.
+        } catch (defaultErr) {
+          retryError = ` Авто-проверка update.rpf: ${String(defaultErr)}`;
         }
       }
 
-      setStatus(`Ошибка архива RPF v${APP_VERSION}: ${errorText}`);
+      setStatus(`Ошибка архива RPF v${APP_VERSION}: ${errorText}${retryError}`);
       return false;
     } finally {
       setLoading(false);

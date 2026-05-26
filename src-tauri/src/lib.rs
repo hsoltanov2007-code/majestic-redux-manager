@@ -1210,6 +1210,17 @@ fn clean_rpf_tool_error(stdout: &str, stderr: &str) -> String {
     }
 }
 
+fn parse_rpf_list_output(stdout: &str) -> Vec<RpfArchiveEntry> {
+    stdout
+        .lines()
+        .filter_map(parse_rpf_entry)
+        .collect::<Vec<_>>()
+}
+
+fn powershell_quote_path(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', "''"))
+}
+
 fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchiveEntry>, String> {
     if !rpf_path.exists() {
         return Err(format!("RPF файл не найден: {}", rpf_path.display()));
@@ -1238,10 +1249,7 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let entries = stdout
-            .lines()
-            .filter_map(parse_rpf_entry)
-            .collect::<Vec<_>>();
+        let entries = parse_rpf_list_output(&stdout);
 
         if !entries.is_empty() {
             return Ok(entries);
@@ -1255,27 +1263,109 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
         ));
     }
 
+    let cmd_line = format!(
+        "\"{}\" list \"{}\"",
+        exe.to_string_lossy(),
+        rpf_path.to_string_lossy()
+    );
+    let cmd_output = Command::new("cmd.exe")
+        .arg("/C")
+        .arg(&cmd_line)
+        .current_dir(exe.parent().unwrap_or_else(|| Path::new(".")))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let cmd_stdout = String::from_utf8_lossy(&cmd_output.stdout);
+    let cmd_stderr = String::from_utf8_lossy(&cmd_output.stderr);
+    let cmd_entries = parse_rpf_list_output(&cmd_stdout);
+
+    if !cmd_entries.is_empty() {
+        return Ok(cmd_entries);
+    }
+
+    errors.push(format!(
+        "cmd.exe: {} код {}",
+        clean_rpf_tool_error(&cmd_stdout, &cmd_stderr),
+        cmd_output.status.code().unwrap_or(-1)
+    ));
+
+    let ps_command = format!(
+        "& {} list {}",
+        powershell_quote_path(exe),
+        powershell_quote_path(rpf_path)
+    );
+    let ps_output = Command::new("powershell.exe")
+        .arg("-NoProfile")
+        .arg("-ExecutionPolicy")
+        .arg("Bypass")
+        .arg("-Command")
+        .arg(&ps_command)
+        .current_dir(exe.parent().unwrap_or_else(|| Path::new(".")))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let ps_stdout = String::from_utf8_lossy(&ps_output.stdout);
+    let ps_stderr = String::from_utf8_lossy(&ps_output.stderr);
+    let ps_entries = parse_rpf_list_output(&ps_stdout);
+
+    if !ps_entries.is_empty() {
+        return Ok(ps_entries);
+    }
+
+    errors.push(format!(
+        "powershell.exe: {} код {}",
+        clean_rpf_tool_error(&ps_stdout, &ps_stderr),
+        ps_output.status.code().unwrap_or(-1)
+    ));
+
     Err(format!(
-        "RPF helper не вернул список файлов. {}",
+        "RPF helper не вернул список файлов для {}. {}",
+        rpf_path.display(),
         errors.join(" | ")
     ))
 }
 
 #[tauri::command]
-fn resolve_default_update_rpf(gta_path: String) -> Result<String, String> {
+fn resolve_default_update_rpf(app: tauri::AppHandle, gta_path: String) -> Result<String, String> {
     let gta_dir = validate_gta_path(&gta_path)?;
+    let exe = rpf_explorer_exe(&app)?;
     let candidates = [
         gta_dir.join("mods").join("update").join("update.rpf"),
         gta_dir.join("update").join("update.rpf"),
     ];
+    let mut existing = vec![];
+    let mut errors = vec![];
 
     for candidate in candidates {
         if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
+            existing.push(candidate);
         }
     }
 
-    Err("update.rpf не найден в GTA V. Проверь путь к GTA или выбери RPF вручную.".to_string())
+    if existing.is_empty() {
+        return Err(
+            "update.rpf не найден в GTA V. Проверь путь к GTA или выбери RPF вручную.".to_string(),
+        );
+    }
+
+    for candidate in existing {
+        match list_rpf_entries_blocking(&exe, &candidate) {
+            Ok(entries) if !entries.is_empty() => {
+                return Ok(candidate.to_string_lossy().to_string());
+            }
+            Ok(_) => errors.push(format!("{}: список файлов пустой", candidate.display())),
+            Err(err) => errors.push(format!("{}: {}", candidate.display(), err)),
+        }
+    }
+
+    Err(format!(
+        "Ни один update.rpf не прочитался автоматически. {}",
+        errors.join(" | ")
+    ))
 }
 
 #[tauri::command]

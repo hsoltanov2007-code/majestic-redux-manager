@@ -1,11 +1,11 @@
 {
-  "version": "0.1.82",
-  "notes": "Исправлен запуск RPF helper: сначала используется папка самого helper, затем обычный запуск и только потом папка архива. Это убирает ошибку чтения update.rpf из-за неверной рабочей папки.",
-  "pub_date": "2026-05-26T16:41:06.818Z",
+  "version": "0.1.83",
+  "notes": "Архивы RPF теперь проверяют читаемость обоих update.rpf, пробуют запуск helper напрямую, через cmd.exe и через powershell.exe, а ошибка показывает результат авто-проверки.",
+  "pub_date": "2026-05-26T21:57:55.601Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTRNUXZkTGwzMm5QNmpNc2RhbGcyRHZGRm5neWFndXNCWHdsZ21nbFMxdVpQSDd0WklENHUyb1A5VEJDRmZZcGFNVmo5cmRPaDJETmcycy90TWV2NndNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODEzNjIzCWZpbGU6SGFyZHkgTU9EU18wLjEuODJfeDY0LXNldHVwLmV4ZQpTRzhIZnlZYWhqTzVoRG9VZy82cys1MC8rK0dDMUZjcEFUVWU2Z1RCWmFJL2FabjdlNUh3YmpUNVVvQVBYTDU4MlkwVXhVajdObTYrTDJ0emhHTUZBUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.82/Hardy.MODS_0.1.82_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTlic1JERXBOcnNKQVFOWjFGVHRkZElFSTVmTk5ZNzRMaEJqSGFpb05Dc0ZBNHBHWlpneURIYlVHZCs2OUsvK2MyaUpYazFJd1ZYVHZNTFU3ZzJuL0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODMyNjI3CWZpbGU6SGFyZHkgTU9EU18wLjEuODNfeDY0LXNldHVwLmV4ZQp0OUs4VzdUaFk0Vzc5K2hBbm5RTGE1eGtTUitTWU5IWjAxYXlyRWF3NEIzdm82LysvenZaRG1PVGJFTHRrRVMwanJ4ZiszTkg0eThRQzh3dEFYYkFBUT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.83/Hardy.MODS_0.1.83_x64-setup.exe"
     }
   }
 }
