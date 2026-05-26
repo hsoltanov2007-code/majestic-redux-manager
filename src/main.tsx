@@ -263,7 +263,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.79";
+const APP_VERSION = "0.1.80";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 

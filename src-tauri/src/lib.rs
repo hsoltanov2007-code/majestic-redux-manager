@@ -1148,13 +1148,20 @@ fn rpf_entry_name(path: &str) -> String {
 }
 
 fn parse_rpf_entry(raw: &str) -> Option<RpfArchiveEntry> {
+    let has_file_marker = raw.contains("[FILE]");
+    let has_dir_marker = raw.contains("[DIR]");
+
+    if !has_file_marker && !has_dir_marker {
+        return None;
+    }
+
     let clean = clean_rpf_entry_path(raw);
 
     if clean.is_empty() {
         return None;
     }
 
-    let is_dir = raw.contains("[DIR]") || raw.trim_end().ends_with('/');
+    let is_dir = has_dir_marker || raw.trim_end().ends_with('/');
     let kind = if is_dir { "folder" } else { "file" }.to_string();
 
     Some(RpfArchiveEntry {
@@ -1166,6 +1173,34 @@ fn parse_rpf_entry(raw: &str) -> Option<RpfArchiveEntry> {
         keywords: String::new(),
         raw: raw.to_string(),
     })
+}
+
+fn clean_rpf_tool_error(stdout: &str, stderr: &str) -> String {
+    let combined = format!("{}\n{}", stdout, stderr);
+    let lower = combined.to_lowercase();
+
+    if lower.contains("object reference not set") {
+        return "Hardy RPF не смог прочитать структуру архива. Попробуй открыть копию из mods/update/update.rpf или нажми разблокировку RPF.".to_string();
+    }
+
+    if lower.contains("rpf not found") {
+        return "RPF файл не найден или путь не передался в RPF helper.".to_string();
+    }
+
+    let details = combined
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .filter(|line| !line.eq_ignore_ascii_case("RPF OPENED"))
+        .take(3)
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if details.is_empty() {
+        "RPF не удалось прочитать: helper не вернул список файлов.".to_string()
+    } else {
+        format!("RPF не удалось прочитать: {}", details)
+    }
 }
 
 fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchiveEntry>, String> {
@@ -1181,12 +1216,22 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
         .output()
         .map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
-    }
-
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
+
+    let entries = stdout
+        .lines()
+        .filter_map(parse_rpf_entry)
+        .collect::<Vec<_>>();
+
+    if !entries.is_empty() {
+        return Ok(entries);
+    }
+
+    if !output.status.success() {
+        return Err(clean_rpf_tool_error(&stdout, &stderr));
+    }
+
     let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
 
     if combined.contains("object reference not set")
@@ -1194,22 +1239,10 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
             .lines()
             .any(|line| line.trim_start().starts_with("error:"))
     {
-        return Err(
-            "RPF не удалось прочитать. Попробуй разблокировать архив или выбрать другой update.rpf."
-                .to_string(),
-        );
+        return Err(clean_rpf_tool_error(&stdout, &stderr));
     }
 
-    let entries = stdout
-        .lines()
-        .filter_map(parse_rpf_entry)
-        .collect::<Vec<_>>();
-
-    if entries.is_empty() {
-        return Err("RPF открыт, но список файлов пустой.".to_string());
-    }
-
-    Ok(entries)
+    Err(clean_rpf_tool_error(&stdout, &stderr))
 }
 
 #[tauri::command]
