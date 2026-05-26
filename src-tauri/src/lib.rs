@@ -1215,46 +1215,50 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
         return Err(format!("RPF файл не найден: {}", rpf_path.display()));
     }
 
-    let output = Command::new(exe)
-        .arg("list")
-        .arg(rpf_path)
-        .current_dir(rpf_path.parent().unwrap_or_else(|| Path::new(".")))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|e| e.to_string())?;
+    let attempts = [
+        ("папка helper", exe.parent()),
+        ("обычный запуск", None),
+        ("папка архива", rpf_path.parent()),
+    ];
+    let mut errors = vec![];
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+    for (label, current_dir) in attempts {
+        let mut command = Command::new(exe);
+        command.arg("list").arg(rpf_path);
 
-    let entries = stdout
-        .lines()
-        .filter_map(parse_rpf_entry)
-        .collect::<Vec<_>>();
+        if let Some(dir) = current_dir {
+            command.current_dir(dir);
+        }
 
-    if !entries.is_empty() {
-        return Ok(entries);
-    }
+        let output = command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        return Err(format!(
-            "{} Код helper: {}.",
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let entries = stdout
+            .lines()
+            .filter_map(parse_rpf_entry)
+            .collect::<Vec<_>>();
+
+        if !entries.is_empty() {
+            return Ok(entries);
+        }
+
+        errors.push(format!(
+            "{}: {} код {}",
+            label,
             clean_rpf_tool_error(&stdout, &stderr),
             output.status.code().unwrap_or(-1)
         ));
     }
 
-    let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
-
-    if combined.contains("object reference not set")
-        || combined
-            .lines()
-            .any(|line| line.trim_start().starts_with("error:"))
-    {
-        return Err(clean_rpf_tool_error(&stdout, &stderr));
-    }
-
-    Err(clean_rpf_tool_error(&stdout, &stderr))
+    Err(format!(
+        "RPF helper не вернул список файлов. {}",
+        errors.join(" | ")
+    ))
 }
 
 #[tauri::command]
