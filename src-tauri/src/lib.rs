@@ -1169,6 +1169,10 @@ fn parse_rpf_entry(raw: &str) -> Option<RpfArchiveEntry> {
 }
 
 fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchiveEntry>, String> {
+    if !rpf_path.exists() {
+        return Err(format!("RPF файл не найден: {}", rpf_path.display()));
+    }
+
     let output = Command::new(exe)
         .arg("list")
         .arg(rpf_path)
@@ -1182,8 +1186,47 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
 
-    Ok(stdout.lines().filter_map(parse_rpf_entry).collect())
+    if combined.contains("object reference not set")
+        || combined
+            .lines()
+            .any(|line| line.trim_start().starts_with("error:"))
+    {
+        return Err(
+            "RPF не удалось прочитать. Попробуй разблокировать архив или выбрать другой update.rpf."
+                .to_string(),
+        );
+    }
+
+    let entries = stdout
+        .lines()
+        .filter_map(parse_rpf_entry)
+        .collect::<Vec<_>>();
+
+    if entries.is_empty() {
+        return Err("RPF открыт, но список файлов пустой.".to_string());
+    }
+
+    Ok(entries)
+}
+
+#[tauri::command]
+fn resolve_default_update_rpf(gta_path: String) -> Result<String, String> {
+    let gta_dir = validate_gta_path(&gta_path)?;
+    let candidates = [
+        gta_dir.join("mods").join("update").join("update.rpf"),
+        gta_dir.join("update").join("update.rpf"),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    Err("update.rpf не найден в GTA V. Проверь путь к GTA или выбери RPF вручную.".to_string())
 }
 
 fn resolve_rpf_internal_path(
@@ -1396,6 +1439,7 @@ pub fn run() {
             detect_gta,
             is_gta_running,
             load_redux_list,
+            resolve_default_update_rpf,
             install_redux,
             restore_backup,
             unlock_rpf_file,

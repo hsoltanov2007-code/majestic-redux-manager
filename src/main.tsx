@@ -263,7 +263,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.78";
+const APP_VERSION = "0.1.79";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -1436,6 +1436,7 @@ function App() {
   const heroMotionPointer = useRef<{ root: HTMLElement; x: number; y: number } | null>(null);
   const heroRailFrame = useRef<number | null>(null);
   const heroRailMotion = useRef({ down: 0, lastTime: 0, speed: 1, up: 0 });
+  const rpfAutoOpenKeyRef = useRef("");
 
   const loginCardSources = useMemo(() => buildLoginCardSources(categories), [categories]);
 
@@ -1674,6 +1675,18 @@ function App() {
       unlistenPromise.then((unlisten) => unlisten());
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (page !== "rpfExplorer" || rpfExplorerPath || !isTauriRuntime()) return;
+
+    const key = gtaPath || "__no_gta_path__";
+    if (rpfAutoOpenKeyRef.current === key) return;
+
+    rpfAutoOpenKeyRef.current = key;
+    void openDefaultUpdateRpf();
+    // openDefaultUpdateRpf is a local function declaration that reads the latest GTA path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gtaPath, page, rpfExplorerPath]);
 
   const filteredCategories = useMemo(() => {
     const q = searchText.toLowerCase().trim();
@@ -3375,6 +3388,37 @@ function App() {
     }
   }
 
+  async function openDefaultUpdateRpf() {
+    if (!isTauriRuntime()) {
+      setStatus("Автооткрытие update.rpf доступно только в приложении Tauri");
+      return;
+    }
+
+    if (!gtaPath) {
+      setStatus("Укажи папку GTA V, чтобы автоматически открыть update.rpf");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const defaultRpfPath = await invoke<string>("resolve_default_update_rpf", {
+        gtaPath,
+      });
+
+      setRpfExplorerPath(defaultRpfPath);
+      setRpfCurrentPath("");
+      setInternalPath("");
+      setReplaceFilePath("");
+      await readRpfTree(defaultRpfPath);
+    } catch (err) {
+      setRpfEntries([]);
+      setStatus("Не удалось открыть update.rpf автоматически: " + String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function chooseRpfExplorerFile() {
     if (!isTauriRuntime()) {
       setStatus("Выбор RPF доступен только в приложении Tauri");
@@ -4327,6 +4371,11 @@ function App() {
           <ToolPanel title="Архивы RPF" icon={<FolderOpen />} onBack={() => setPage("home")}>
             <div className="rpf-explorer-toolbar">
               <PrimaryButton onClick={chooseRpfExplorerFile}>Выбрать и открыть RPF</PrimaryButton>
+
+              <PrimaryButton disabled={!gtaPath || loading} onClick={openDefaultUpdateRpf}>
+                <FolderSearch size={18} />
+                Открыть update.rpf
+              </PrimaryButton>
 
               <PurpleButton disabled={!rpfExplorerPath} onClick={loadRpfTree}>
                 Обновить дерево
