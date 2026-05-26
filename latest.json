@@ -1,11 +1,11 @@
 {
-  "version": "0.1.77",
-  "notes": "Исправлена замена светлый/темный, улучшена админка каталога и проверка установленных Redux файлов.",
-  "pub_date": "2026-05-22T11:34:53Z",
+  "version": "0.1.78",
+  "notes": "Архивы RPF переделаны в OpenIV-стиль с переходом по папкам. Если путь внутри RPF не указан, замена автоматически ищет файл по имени.",
+  "pub_date": "2026-05-26T15:00:59Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZStZMk9uVVh5UVE2b3NDU0t6WDdQc1dQL0VNMUd6QnZXNTlkN0JZajNMbGFUOUhDQWlMbkpRMFpmMFI4bncyM1BPcG9yNVJwbFMwL0FaNnNJZTFaYWcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NDQ5NjIyCWZpbGU6SGFyZHkgTU9EU18wLjEuNzdfeDY0LXNldHVwLmV4ZQpoVVRUdWN5Mno0MytRaFZGWVgzN3ZiTktCVkJOVXFmOUdvQVh0ZGl4Z3M0UWx2cVdCdGFiamFCNGQrZTJRS3IrOVVjY3dyTThWSi8reXRuRWRHUzlCdz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.77/Hardy.MODS_0.1.77_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZXo3UmIzUjJMRlRsc3Q4L05NZDhCVGpXc1g4QVVLR1EzYStqVytaVis5a3hIOWRGWWNnUi9uY0tuRFQzYlhhWmowZ1J4K09XSHVvaEVQakQ2Rk9qQkFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODA3NTk2CWZpbGU6SGFyZHkgTU9EU18wLjEuNzhfeDY0LXNldHVwLmV4ZQpWKytDcjJKQ0d1aEJVRXBKb2dCYXhyMkN2ZlFiWCtZRnJHb3krR2RvTStPSndSelRMWTNEMmNKbW1iWktiWFdDTjZOMlBRc1FKVU5IamZzWlMvbDNCZz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.78/Hardy.MODS_0.1.78_x64-setup.exe"
     }
   }
 }

@@ -111,6 +111,18 @@ struct ProgressPayload {
     step: String,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct RpfArchiveEntry {
+    path: String,
+    name: String,
+    kind: String,
+    size: Option<u64>,
+    attributes: String,
+    keywords: String,
+    raw: String,
+}
+
 fn emit_progress(app: &tauri::AppHandle, progress: u64, step: &str) {
     let _ = app.emit(
         "install-progress",
@@ -694,18 +706,19 @@ fn apply_rpf_patches(
     for patch in patches {
         let patch = split_rpf_patch_path(patch);
         validate_relative_text_path(&patch.rpf_path, "rpfPath")?;
-        validate_relative_text_path(&patch.internal_path, "internalPath")?;
         validate_relative_text_path(&patch.file, "file")?;
 
         let (rpf_path, installed_rpf_path) = resolve_rpf_path(gta_dir, &patch.rpf_path)?;
         let source_path = patch_source_path(extract_path, install_root, &patch.file)?;
+        let internal_path =
+            resolve_rpf_internal_path(explorer_exe, &rpf_path, &patch.internal_path, &source_path)?;
 
         backup_one_file(&rpf_path, gta_dir, backup_dir)?;
 
         let output = Command::new(explorer_exe)
             .arg("replace")
             .arg(&rpf_path)
-            .arg(&patch.internal_path)
+            .arg(&internal_path)
             .arg(&source_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -1117,35 +1130,122 @@ fn rpf_explorer_exe(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(exe)
 }
 
+fn clean_rpf_entry_path(raw: &str) -> String {
+    raw.replace("[FILE]", "")
+        .replace("[DIR]", "")
+        .trim()
+        .replace('\\', "/")
+        .trim_matches('/')
+        .to_string()
+}
+
+fn rpf_entry_name(path: &str) -> String {
+    path.rsplit('/')
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(path)
+        .to_string()
+}
+
+fn parse_rpf_entry(raw: &str) -> Option<RpfArchiveEntry> {
+    let clean = clean_rpf_entry_path(raw);
+
+    if clean.is_empty() {
+        return None;
+    }
+
+    let is_dir = raw.contains("[DIR]") || raw.trim_end().ends_with('/');
+    let kind = if is_dir { "folder" } else { "file" }.to_string();
+
+    Some(RpfArchiveEntry {
+        name: rpf_entry_name(&clean),
+        path: clean,
+        kind,
+        size: None,
+        attributes: String::new(),
+        keywords: String::new(),
+        raw: raw.to_string(),
+    })
+}
+
+fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchiveEntry>, String> {
+    let output = Command::new(exe)
+        .arg("list")
+        .arg(rpf_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    Ok(stdout.lines().filter_map(parse_rpf_entry).collect())
+}
+
+fn resolve_rpf_internal_path(
+    explorer_exe: &Path,
+    rpf_path: &Path,
+    requested_path: &str,
+    source_file: &Path,
+) -> Result<String, String> {
+    let requested = requested_path.trim().replace('\\', "/");
+
+    if !requested.is_empty() {
+        validate_relative_text_path(&requested, "internalPath")?;
+        return Ok(requested);
+    }
+
+    let target_name = source_file
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("Не удалось получить имя файла для автопоиска внутри RPF")?
+        .to_lowercase();
+
+    let mut matches = list_rpf_entries_blocking(explorer_exe, rpf_path)?
+        .into_iter()
+        .filter(|entry| entry.kind == "file" && entry.name.to_lowercase() == target_name)
+        .map(|entry| entry.path)
+        .collect::<Vec<_>>();
+
+    matches.sort();
+    matches.dedup();
+
+    match matches.len() {
+        1 => Ok(matches.remove(0)),
+        0 => Err(format!(
+            "В RPF не найден файл {}. Укажи путь внутри архива вручную.",
+            target_name
+        )),
+        _ => Err(format!(
+            "В RPF найдено несколько файлов {}: {}. Укажи точный путь внутри архива.",
+            target_name,
+            matches
+                .iter()
+                .take(6)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
+}
+
 #[tauri::command]
-async fn list_rpf_file(app: tauri::AppHandle, rpf_path: String) -> Result<Vec<String>, String> {
+async fn list_rpf_file(
+    app: tauri::AppHandle,
+    rpf_path: String,
+) -> Result<Vec<RpfArchiveEntry>, String> {
     let exe = rpf_explorer_exe(&app)?;
 
-    let output = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<String>, String> {
-        let output = Command::new(exe)
-            .arg("list")
-            .arg(rpf_path)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .map_err(|e| e.to_string())?;
-
-        if !output.status.success() {
-            return Err(String::from_utf8_lossy(&output.stderr).to_string());
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        let lines = stdout
-            .lines()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<String>>();
-
-        Ok(lines)
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    let output =
+        tauri::async_runtime::spawn_blocking(move || -> Result<Vec<RpfArchiveEntry>, String> {
+            list_rpf_entries_blocking(&exe, &PathBuf::from(rpf_path))
+        })
+        .await
+        .map_err(|e| e.to_string())??;
 
     Ok(output)
 }
@@ -1192,11 +1292,16 @@ async fn replace_rpf_file(
     let exe = rpf_explorer_exe(&app)?;
 
     let output = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        let rpf_file = PathBuf::from(&rpf_path);
+        let new_file = PathBuf::from(&new_file_path);
+        let resolved_internal_path =
+            resolve_rpf_internal_path(&exe, &rpf_file, &internal_path, &new_file)?;
+
         let output = Command::new(exe)
             .arg("replace")
-            .arg(rpf_path)
-            .arg(internal_path)
-            .arg(new_file_path)
+            .arg(rpf_file)
+            .arg(&resolved_internal_path)
+            .arg(new_file)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -1206,7 +1311,13 @@ async fn replace_rpf_file(
             return Err(String::from_utf8_lossy(&output.stderr).to_string());
         }
 
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+        Ok(if stdout.trim().is_empty() {
+            format!("Файл заменён: {}", resolved_internal_path)
+        } else {
+            stdout
+        })
     })
     .await
     .map_err(|e| e.to_string())??;

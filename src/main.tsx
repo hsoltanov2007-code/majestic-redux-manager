@@ -220,6 +220,16 @@ type RpfNode = {
   children: RpfNode[];
 };
 
+type RpfArchiveEntry = {
+  path: string;
+  name: string;
+  kind: "folder" | "file";
+  size?: number | null;
+  attributes?: string;
+  keywords?: string;
+  raw?: string;
+};
+
 type AuthAccount = {
   username: string;
   passwordHash: string;
@@ -253,7 +263,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.77";
+const APP_VERSION = "0.1.78";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -557,6 +567,123 @@ function getModContentItems(mod: ModItem) {
   }
 
   return items;
+}
+
+function normalizeRpfEntryPath(path: string) {
+  return path
+    .replaceAll("\\", "/")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+}
+
+function getRpfEntryName(path: string) {
+  const parts = normalizeRpfEntryPath(path).split("/").filter(Boolean);
+  return parts.at(-1) || "";
+}
+
+function getRpfParentPath(path: string) {
+  const parts = normalizeRpfEntryPath(path).split("/").filter(Boolean);
+  parts.pop();
+  return parts.join("/");
+}
+
+function getRpfExtension(name: string) {
+  const match = name.match(/\.([^.]+)$/);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function formatRpfSize(size?: number | null) {
+  if (!size || size <= 0) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function getRpfEntryType(entry: RpfArchiveEntry) {
+  if (entry.kind === "folder") return "Папка";
+
+  const extension = getRpfExtension(entry.name);
+  const knownTypes: Record<string, string> = {
+    meta: "META",
+    xml: "Документ XML",
+    ybn: "Bound",
+    ydd: "Drawable dictionary",
+    ydr: "Drawable",
+    yft: "Fragment",
+    ymap: "Map",
+    ynv: "Nav mesh",
+    ytd: "Texture dictionary",
+    ytyp: "Archetype",
+  };
+
+  return knownTypes[extension] || (extension ? extension.toUpperCase() : "Файл");
+}
+
+function buildRpfArchiveEntries(entries: RpfArchiveEntry[]) {
+  const map = new Map<string, RpfArchiveEntry>();
+
+  for (const rawEntry of entries) {
+    const path = normalizeRpfEntryPath(rawEntry.path);
+    if (!path) continue;
+
+    const parts = path.split("/").filter(Boolean);
+    let currentPath = "";
+
+    parts.forEach((part, index) => {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      const isLeaf = index === parts.length - 1;
+      const existing = map.get(currentPath);
+
+      if (existing && (!isLeaf || rawEntry.kind === "folder")) return;
+
+      map.set(currentPath, {
+        ...rawEntry,
+        kind: isLeaf ? rawEntry.kind : "folder",
+        name: isLeaf ? rawEntry.name || part : part,
+        path: currentPath,
+      });
+    });
+  }
+
+  return Array.from(map.values()).sort((left, right) => {
+    const leftParent = getRpfParentPath(left.path);
+    const rightParent = getRpfParentPath(right.path);
+
+    if (leftParent !== rightParent) return leftParent.localeCompare(rightParent, "ru");
+    if (left.kind !== right.kind) return left.kind === "folder" ? -1 : 1;
+    return left.name.localeCompare(right.name, "ru", { numeric: true });
+  });
+}
+
+function getRpfChildren(entries: RpfArchiveEntry[], currentPath: string, search: string) {
+  const normalizedCurrent = normalizeRpfEntryPath(currentPath);
+  const query = search.toLowerCase().trim();
+
+  return entries.filter((entry) => {
+    const parent = getRpfParentPath(entry.path);
+    const directChild = parent === normalizedCurrent;
+    const matches =
+      !query ||
+      `${entry.path} ${entry.name} ${getRpfEntryType(entry)} ${entry.attributes || ""} ${
+        entry.keywords || ""
+      }`
+        .toLowerCase()
+        .includes(query);
+
+    return (query ? matches : directChild) && entry.path !== normalizedCurrent;
+  });
+}
+
+function getRpfBreadcrumbs(path: string) {
+  const parts = normalizeRpfEntryPath(path).split("/").filter(Boolean);
+
+  return [
+    { label: "update.rpf", path: "" },
+    ...parts.map((part, index) => ({
+      label: part,
+      path: parts.slice(0, index + 1).join("/"),
+    })),
+  ];
 }
 
 function getRpfPatchLabel(patch: RpfPatch) {
@@ -947,7 +1074,7 @@ function normalizeRpfPatches(value: unknown): RpfPatch[] | undefined {
       const internalPath = readString(entry.internalPath ?? entry.internal_path).trim();
       const file = readString(entry.file).trim();
 
-      if (!rpfPath || !internalPath || !file) return null;
+      if (!rpfPath || !file) return null;
 
       return { file, internalPath, rpfPath };
     })
@@ -1289,7 +1416,8 @@ function App() {
 
   const [rpfPath, setRpfPath] = useState("");
   const [rpfExplorerPath, setRpfExplorerPath] = useState("");
-  const [rpfEntries, setRpfEntries] = useState<string[]>([]);
+  const [rpfEntries, setRpfEntries] = useState<RpfArchiveEntry[]>([]);
+  const [rpfCurrentPath, setRpfCurrentPath] = useState("");
   const [internalPath, setInternalPath] = useState("");
   const [replaceFilePath, setReplaceFilePath] = useState("");
   const [rpfSearch, setRpfSearch] = useState("");
@@ -3260,6 +3388,7 @@ function App() {
 
     if (typeof file === "string") {
       setRpfExplorerPath(file);
+      setRpfCurrentPath("");
       setInternalPath("");
       setReplaceFilePath("");
       await readRpfTree(file);
@@ -3276,7 +3405,7 @@ function App() {
       setLoading(true);
       setRpfEntries([]);
 
-      const result = await invoke<string[]>("list_rpf_file", {
+      const result = await invoke<RpfArchiveEntry[]>("list_rpf_file", {
         rpfPath: nextRpfPath,
       });
 
@@ -3314,8 +3443,8 @@ function App() {
   }
 
   async function replaceRpfFile() {
-    if (!rpfExplorerPath || !internalPath || !replaceFilePath) {
-      setStatus("Выбери RPF, файл внутри архива и файл для замены");
+    if (!rpfExplorerPath || !replaceFilePath) {
+      setStatus("Выбери RPF и файл для замены");
       return;
     }
 
@@ -3333,7 +3462,8 @@ function App() {
         newFilePath: replaceFilePath,
       });
 
-      setStatus(result || "Файл заменён");
+      setStatus(result || (internalPath ? "Файл заменён" : "Файл найден по имени и заменён"));
+      await readRpfTree(rpfExplorerPath);
     } catch (err) {
       setStatus("Ошибка замены: " + String(err));
     } finally {
@@ -3341,9 +3471,20 @@ function App() {
     }
   }
 
-  const rpfTree = useMemo(() => {
-    return buildRpfTree(rpfEntries);
+  const rpfArchiveEntries = useMemo(() => {
+    return buildRpfArchiveEntries(rpfEntries);
   }, [rpfEntries]);
+
+  const rpfCurrentItems = useMemo(() => {
+    return getRpfChildren(rpfArchiveEntries, rpfCurrentPath, rpfSearch);
+  }, [rpfArchiveEntries, rpfCurrentPath, rpfSearch]);
+
+  const rpfBreadcrumbs = useMemo(() => getRpfBreadcrumbs(rpfCurrentPath), [rpfCurrentPath]);
+
+  const selectedRpfEntry = useMemo(
+    () => rpfArchiveEntries.find((entry) => entry.path === internalPath),
+    [internalPath, rpfArchiveEntries],
+  );
 
   const selectedModGallery = useMemo(() => {
     if (!selectedCategory || !selectedMod) return [];
@@ -4196,37 +4337,109 @@ function App() {
 
             <PathBox text={rpfExplorerPath || "RPF не выбран"} />
 
-            <div className="rpf-explorer-grid">
-              <div className="rpf-tree-panel">
-                <div className="rpf-panel-title">
-                  <ListTree size={19} />
-                  Дерево архива
+            <div className="rpf-openiv-shell">
+              <div className="rpf-openiv-topbar">
+                <div className="rpf-breadcrumbs">
+                  {rpfBreadcrumbs.map((crumb, index) => (
+                    <React.Fragment key={crumb.path || "root"}>
+                      {index > 0 && <ChevronRight size={15} />}
+                      <button type="button" onClick={() => setRpfCurrentPath(crumb.path)}>
+                        {index === 0 && <FolderOpen size={16} />}
+                        {index === 0 && rpfExplorerPath
+                          ? getRpfEntryName(rpfExplorerPath)
+                          : crumb.label}
+                      </button>
+                    </React.Fragment>
+                  ))}
                 </div>
 
-                <div className="rpf-tree-scroll">
-                  {rpfEntries.length > 0 ? (
-                    <TreeView
-                      nodes={filterTree(rpfTree, rpfSearch)}
-                      selectedPath={internalPath}
-                      onSelect={setInternalPath}
-                    />
-                  ) : (
+                <button
+                  type="button"
+                  disabled={!rpfCurrentPath}
+                  onClick={() => setRpfCurrentPath(getRpfParentPath(rpfCurrentPath))}
+                  className="rpf-up-button"
+                >
+                  <ArrowLeft size={16} />
+                  Назад
+                </button>
+              </div>
+
+              <div className="rpf-openiv-table">
+                <div className="rpf-openiv-header">
+                  <span>Имя</span>
+                  <span>Тип</span>
+                  <span>Размер</span>
+                  <span>Атрибуты</span>
+                  <span>Ключевые слова</span>
+                </div>
+
+                <div className="rpf-openiv-body">
+                  {rpfEntries.length === 0 ? (
                     <div className="rpf-empty-tree">
                       <FolderOpen size={42} />
                       <strong>Архив еще не открыт</strong>
                       <span>Выбери RPF файл, и список появится здесь сразу.</span>
                     </div>
+                  ) : rpfCurrentItems.length > 0 ? (
+                    rpfCurrentItems.map((entry) => (
+                      <button
+                        key={entry.path}
+                        type="button"
+                        onClick={() => {
+                          if (entry.kind === "folder") {
+                            setRpfCurrentPath(entry.path);
+                            setInternalPath("");
+                            return;
+                          }
+
+                          setInternalPath(entry.path);
+                        }}
+                        onDoubleClick={() => {
+                          if (entry.kind === "folder") setRpfCurrentPath(entry.path);
+                        }}
+                        className={`rpf-openiv-row ${
+                          internalPath === entry.path ? "rpf-openiv-row--selected" : ""
+                        } ${entry.kind === "folder" ? "rpf-openiv-row--folder" : ""}`}
+                      >
+                        <span className="rpf-name-cell">
+                          {entry.kind === "folder" ? <Folder size={18} /> : <FileText size={18} />}
+                          {entry.name}
+                        </span>
+                        <span>{getRpfEntryType(entry)}</span>
+                        <span>{entry.kind === "folder" ? "" : formatRpfSize(entry.size)}</span>
+                        <span>
+                          {entry.kind === "folder" ? "Папка" : entry.attributes || "Сжатый"}
+                        </span>
+                        <span>{entry.keywords || "Нет"}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="rpf-empty-tree">
+                      <Search size={38} />
+                      <strong>Ничего не найдено</strong>
+                      <span>Очисти поиск или перейди в другую папку архива.</span>
+                    </div>
                   )}
                 </div>
               </div>
+            </div>
 
+            <div className="rpf-explorer-grid mt-4">
               <div className="rpf-replace-panel">
                 <div className="rpf-panel-title">
                   <Upload size={19} />
                   Замена файла
                 </div>
 
-                <PathBox text={internalPath || "Файл не выбран"} />
+                <PathBox
+                  text={
+                    internalPath
+                      ? selectedRpfEntry
+                        ? `${selectedRpfEntry.path} · ${getRpfEntryType(selectedRpfEntry)}`
+                        : internalPath
+                      : "Файл внутри RPF не выбран: если выбрать только новый файл, приложение само найдёт совпадение по имени"
+                  }
+                />
                 <PathBox text={replaceFilePath || "Новый файл не выбран"} />
 
                 <div className="grid grid-cols-2 gap-4">
@@ -4236,10 +4449,10 @@ function App() {
                   </PrimaryButton>
 
                   <PurpleButton
-                    disabled={!internalPath || !replaceFilePath}
+                    disabled={!rpfExplorerPath || !replaceFilePath}
                     onClick={replaceRpfFile}
                   >
-                    Заменить
+                    {internalPath ? "Заменить" : "Найти и заменить"}
                   </PurpleButton>
                 </div>
               </div>
@@ -4485,7 +4698,9 @@ function App() {
                                       <div className="font-black">Замены RPF</div>
                                       <div className="text-xs text-white/45">
                                         Путь может начинаться с update/update.rpf; приложение также
-                                        проверяет mods/update/update.rpf
+                                        проверяет mods/update/update.rpf. Поле “Путь внутри архива”
+                                        можно оставить пустым, тогда замена найдётся по имени файла
+                                        из ZIP.
                                       </div>
                                     </div>
                                     <PrimaryButton
@@ -4540,6 +4755,7 @@ function App() {
                                           <AdminField
                                             label="Путь внутри архива"
                                             value={patch.internalPath}
+                                            placeholder="Можно оставить пустым: найдём по имени файла"
                                             onChange={(value) =>
                                               updateAdminRpfPatch(
                                                 category.id,
@@ -4711,7 +4927,9 @@ function App() {
                                           {(variant.rpfPatches || []).length === 0 && (
                                             <div className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/45">
                                               Если вариант использует общие замены мода, можно
-                                              оставить пустым.
+                                              оставить пустым. Внутренний путь RPF у отдельной
+                                              замены тоже можно не писать, если имя файла в RPF
+                                              уникальное.
                                             </div>
                                           )}
 
@@ -4759,6 +4977,7 @@ function App() {
                                                   <AdminField
                                                     label="Путь внутри архива"
                                                     value={patch.internalPath}
+                                                    placeholder="Можно оставить пустым: найдём по имени файла"
                                                     onChange={(value) =>
                                                       updateAdminVariantRpfPatch(
                                                         category.id,
