@@ -17,6 +17,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 
 import {
   ArrowLeft,
+  Activity,
+  AlertTriangle,
   Bell,
   CheckCircle2,
   ChevronLeft,
@@ -43,6 +45,8 @@ import {
   Plus,
   RefreshCw,
   Send,
+  ShieldCheck,
+  Star,
   RotateCcw,
   Search,
   Settings,
@@ -184,6 +188,28 @@ type FilterMode = "all" | "installed" | "notInstalled";
 type AdminCatalogFilter = "all" | "missing" | "variants";
 type AdminSupportFilter = "open" | "all" | "answered";
 
+type NotificationItem = {
+  id: string;
+  message: string;
+  time: string;
+  tone: "info" | "success" | "warning" | "error";
+};
+
+type InstallHistoryItem = {
+  action: "install" | "restore";
+  id: string;
+  modName: string;
+  time: string;
+  variantName?: string;
+  version?: string;
+};
+
+type GtaDiagnostic = {
+  label: string;
+  status: "ok" | "warning" | "error";
+  text: string;
+};
+
 type ProgressPayload = {
   progress: number;
   step: string;
@@ -269,7 +295,10 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.84";
+const APP_VERSION = "0.1.85";
+const FAVORITES_KEY = "hardy-favorites";
+const INSTALL_HISTORY_KEY = "hardy-install-history";
+const NOTIFICATIONS_KEY = "hardy-notifications";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -321,6 +350,59 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function readJsonStorage<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonStorage<T>(key: string, value: T) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function makeNotification(
+  message: string,
+  tone: NotificationItem["tone"] = "info",
+): NotificationItem {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    message,
+    time: new Date().toISOString(),
+    tone,
+  };
+}
+
+function simplifyErrorMessage(error: unknown) {
+  const raw = String(error || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const lower = raw.toLowerCase();
+
+  if (!raw) return "Ошибка без подробностей.";
+  if (lower.includes("being used by another process") || raw.includes("используется другим")) {
+    return "Файл занят другой программой. Закрой GTA V, OpenIV и попробуй снова.";
+  }
+  if (lower.includes("object reference not set")) {
+    return "RPF не прочитался. Попробуй разблокировать архив или выбрать копию из mods/update.";
+  }
+  if (lower.includes("update.rpf") && lower.includes("не прочит")) {
+    return "update.rpf не открылся автоматически. Закрой GTA/OpenIV или выбери файл вручную.";
+  }
+  if (lower.includes("rpf helper") || lower.includes("hardyrpfexplorer")) {
+    return "RPF helper не смог прочитать архив. Закрой лишние программы и попробуй ещё раз.";
+  }
+  if (raw.length > 150) return `${raw.slice(0, 147).trim()}...`;
+
+  return raw;
 }
 
 function clamp01(value: number) {
@@ -1415,6 +1497,21 @@ function App() {
   const [adminCatalogQuery, setAdminCatalogQuery] = useState("");
   const [adminCatalogFilter, setAdminCatalogFilter] = useState<AdminCatalogFilter>("all");
   const [activeAdminModKey, setActiveAdminModKey] = useState("");
+  const [favoriteMods, setFavoriteMods] = useState<string[]>(() =>
+    readJsonStorage<string[]>(FAVORITES_KEY, []),
+  );
+  const [installHistory, setInstallHistory] = useState<InstallHistoryItem[]>(() =>
+    readJsonStorage<InstallHistoryItem[]>(INSTALL_HISTORY_KEY, []),
+  );
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
+    readJsonStorage<NotificationItem[]>(NOTIFICATIONS_KEY, [
+      makeNotification("Центр уведомлений готов", "success"),
+    ]),
+  );
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [gtaDiagnostics, setGtaDiagnostics] = useState<GtaDiagnostic[]>([]);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [bootVisible, setBootVisible] = useState(true);
 
   const [gtaPath, setGtaPath] = useState("");
   const [systemPath, setSystemPath] = useState("");
@@ -1446,6 +1543,11 @@ function App() {
   const rpfAutoOpenKeyRef = useRef("");
 
   const loginCardSources = useMemo(() => buildLoginCardSources(categories), [categories]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBootVisible(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (promoState !== "closing") return;
@@ -1945,6 +2047,76 @@ function App() {
       }, 1000);
     }
   }, [loading]);
+
+  function pushNotification(message: string, tone: NotificationItem["tone"] = "info") {
+    const item = makeNotification(message, tone);
+    setNotifications((current) => {
+      const next = [item, ...current].slice(0, 30);
+      writeJsonStorage(NOTIFICATIONS_KEY, next);
+      return next;
+    });
+  }
+
+  function setAppStatus(message: string, tone: NotificationItem["tone"] = "info") {
+    const clean = simplifyErrorMessage(message);
+    setStatus(clean);
+    pushNotification(clean, tone);
+  }
+
+  function addInstallHistory(item: Omit<InstallHistoryItem, "time">) {
+    setInstallHistory((current) => {
+      const next = [{ ...item, time: new Date().toISOString() }, ...current].slice(0, 40);
+      writeJsonStorage(INSTALL_HISTORY_KEY, next);
+      return next;
+    });
+  }
+
+  function toggleFavoriteMod(modId: string) {
+    setFavoriteMods((current) => {
+      const next = current.includes(modId)
+        ? current.filter((id) => id !== modId)
+        : [modId, ...current];
+      writeJsonStorage(FAVORITES_KEY, next);
+      pushNotification(
+        next.includes(modId) ? "Мод добавлен в избранное" : "Мод убран из избранного",
+        "success",
+      );
+      return next;
+    });
+  }
+
+  function runGtaDiagnostics() {
+    const installedCount = Object.keys(installedRedux).length;
+    const checks: GtaDiagnostic[] = [
+      {
+        label: "Путь GTA V",
+        status: gtaPath.trim() ? "ok" : "error",
+        text: gtaPath.trim() ? gtaPath : "Папка GTA V не выбрана",
+      },
+      {
+        label: "RPF update",
+        status: gtaPath.trim() ? "warning" : "error",
+        text: gtaPath.trim()
+          ? "Если update.rpf занят, закрой GTA V и OpenIV перед открытием архива."
+          : "Сначала укажи папку GTA V.",
+      },
+      {
+        label: "Установленные моды",
+        status: installedCount > 0 ? "ok" : "warning",
+        text:
+          installedCount > 0 ? `Установлено: ${installedCount}` : "Пока нет установленных модов.",
+      },
+      {
+        label: "Версия приложения",
+        status: "ok",
+        text: runtimeInfo ? `v${runtimeInfo.version}` : `v${APP_VERSION}`,
+      },
+    ];
+
+    setGtaDiagnostics(checks);
+    setDiagnosticsOpen(true);
+    pushNotification("Диагностика GTA обновлена", "success");
+  }
 
   async function setupLocalAccount(
     username: string,
@@ -3143,9 +3315,10 @@ function App() {
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus("GTA V найдена");
+      setAppStatus("GTA V найдена", "success");
+      runGtaDiagnostics();
     } catch (err) {
-      setStatus(String(err));
+      setAppStatus(String(err), "error");
     } finally {
       setLoading(false);
     }
@@ -3301,7 +3474,14 @@ function App() {
           installedRedux: nextInstalled,
         });
         setProgress(100);
-        setStatus(`${installName} отмечен как установлен в режиме предпросмотра`);
+        addInstallHistory({
+          action: "install",
+          id: item.id,
+          modName: item.name,
+          variantName: variant?.name,
+          version: installVersion,
+        });
+        setAppStatus(`${installName} отмечен как установлен в режиме предпросмотра`, "success");
         return;
       }
 
@@ -3314,9 +3494,16 @@ function App() {
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus(installed ? installName + " обновлён" : installName + " установлен");
+      addInstallHistory({
+        action: "install",
+        id: item.id,
+        modName: item.name,
+        variantName: variant?.name,
+        version: installVersion,
+      });
+      setAppStatus(installed ? installName + " обновлён" : installName + " установлен", "success");
     } catch (err) {
-      setStatus("Ошибка установки: " + String(err));
+      setAppStatus("Ошибка установки: " + String(err), "error");
     } finally {
       setLoading(false);
     }
@@ -3341,7 +3528,8 @@ function App() {
           systemPath,
           installedRedux: nextInstalled,
         });
-        setStatus(`${item.name} удалён из режима предпросмотра`);
+        addInstallHistory({ action: "restore", id: item.id, modName: item.name });
+        setAppStatus(`${item.name} удалён из режима предпросмотра`, "success");
         return;
       }
 
@@ -3351,9 +3539,10 @@ function App() {
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus("Резервная копия восстановлена, временные файлы очищены");
+      addInstallHistory({ action: "restore", id: item.id, modName: item.name });
+      setAppStatus("Резервная копия восстановлена, временные файлы очищены", "success");
     } catch (err) {
-      setStatus("Ошибка восстановления: " + String(err));
+      setAppStatus("Ошибка восстановления: " + String(err), "error");
     } finally {
       setLoading(false);
     }
@@ -3426,7 +3615,7 @@ function App() {
       await readRpfTree(defaultRpfPath);
     } catch (err) {
       setRpfEntries([]);
-      setStatus("Не удалось открыть update.rpf автоматически: " + String(err));
+      setAppStatus("Не удалось открыть update.rpf автоматически: " + String(err), "error");
     } finally {
       setLoading(false);
     }
@@ -3467,7 +3656,7 @@ function App() {
       });
 
       setRpfEntries(result);
-      setStatus(`RPF открыт: ${result.length} файлов`);
+      setAppStatus(`RPF открыт: ${result.length} файлов`, "success");
       return true;
     } catch (err) {
       const errorText = String(err);
@@ -3484,7 +3673,7 @@ function App() {
             setRpfCurrentPath("");
             setInternalPath("");
             setReplaceFilePath("");
-            setStatus("Первый RPF не открылся, пробую mods/update/update.rpf...");
+            setAppStatus("Первый RPF не открылся, пробую mods/update/update.rpf...", "warning");
             return await readRpfTree(defaultRpfPath, false);
           }
         } catch (defaultErr) {
@@ -3492,7 +3681,7 @@ function App() {
         }
       }
 
-      setStatus(`Ошибка архива RPF v${APP_VERSION}: ${errorText}${retryError}`);
+      setAppStatus(`Ошибка архива RPF: ${errorText}${retryError}`, "error");
       return false;
     } finally {
       setLoading(false);
@@ -3610,6 +3799,7 @@ function App() {
           }}
         />
         {promoState === "docked" && <PromoDock floating />}
+        {bootVisible && <BootScreen />}
         <GlowCursor />
       </>
     );
@@ -3655,8 +3845,12 @@ function App() {
           </nav>
 
           <div className="flex items-center justify-end gap-3">
-            <CircleButton onClick={() => checkForAppUpdate(false)}>
+            <CircleButton onClick={() => setNotificationsOpen((value) => !value)}>
               <Bell size={18} />
+            </CircleButton>
+
+            <CircleButton onClick={runGtaDiagnostics}>
+              <Activity size={18} />
             </CircleButton>
 
             <CircleButton onClick={detectGta}>
@@ -3782,6 +3976,56 @@ function App() {
                   <span>{totalUsers}</span>
                   <strong>пользователей</strong>
                 </div>
+              </div>
+
+              <div className="home-command-grid">
+                <button type="button" onClick={() => setPage("faq")} className="home-command-card">
+                  <Info size={20} />
+                  <span>Помощь</span>
+                  <strong>FAQ, поиск и быстрые ответы</strong>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotificationsOpen(true)}
+                  className="home-command-card"
+                >
+                  <Bell size={20} />
+                  <span>Уведомления</span>
+                  <strong>{notifications.length} событий</strong>
+                </button>
+                <button type="button" onClick={runGtaDiagnostics} className="home-command-card">
+                  <ShieldCheck size={20} />
+                  <span>Диагностика GTA</span>
+                  <strong>Путь, RPF и версия</strong>
+                </button>
+              </div>
+
+              <div className="home-mini-panels">
+                <MiniActivityPanel
+                  title="Избранное"
+                  icon={<Star size={18} />}
+                  empty="Избранных модов пока нет"
+                  items={favoriteMods
+                    .map(
+                      (id) =>
+                        categories.flatMap((category) => category.mods).find((mod) => mod.id === id)
+                          ?.name,
+                    )
+                    .filter((name): name is string => Boolean(name))
+                    .slice(0, 3)}
+                />
+                <MiniActivityPanel
+                  title="История"
+                  icon={<RefreshCw size={18} />}
+                  empty="История установок пустая"
+                  items={installHistory
+                    .slice(0, 3)
+                    .map((item) =>
+                      item.action === "install"
+                        ? `${item.modName} установлен`
+                        : `${item.modName} восстановлен`,
+                    )}
+                />
               </div>
             </div>
 
@@ -4189,6 +4433,8 @@ function App() {
                       onOpen={() => openModDetail(selectedCategory, item)}
                       onInstall={(variant) => installRedux(item, variant)}
                       onRestore={() => restoreRedux(item)}
+                      favorite={favoriteMods.includes(item.id)}
+                      onFavorite={() => toggleFavoriteMod(item.id)}
                     />
                   );
                 })}
@@ -4272,7 +4518,20 @@ function App() {
 
               <div className="mod-detail-info">
                 <div className="catalog-kicker">Карточка мода</div>
-                <h2>{selectedMod.name}</h2>
+                <div className="mod-detail-title-row">
+                  <h2>{selectedMod.name}</h2>
+                  <button
+                    type="button"
+                    onClick={() => toggleFavoriteMod(selectedMod.id)}
+                    className={
+                      favoriteMods.includes(selectedMod.id)
+                        ? "favorite-button favorite-button--active"
+                        : "favorite-button"
+                    }
+                  >
+                    <Star size={20} />
+                  </button>
+                </div>
                 <ModDescriptionPanel description={selectedMod.description} />
 
                 <div className="mod-detail-actions">
@@ -4547,11 +4806,31 @@ function App() {
           </ToolPanel>
         )}
 
-        {page === "faq" && <FaqPage />}
+        {page === "faq" && (
+          <FaqPage
+            modCount={catalogStats.modCount}
+            downloadCount={installHistory.filter((item) => item.action === "install").length}
+            userCount={totalUsers}
+          />
+        )}
 
         {page === "admin" && (
-          <ToolPanel title="Панель админа" icon={<FileJson />} onBack={() => setPage("home")}>
-            <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] gap-6">
+          <ToolPanel title="Центр управления" icon={<FileJson />} onBack={() => setPage("home")}>
+            <div className="admin-app-hero">
+              <div>
+                <div className="admin-app-kicker">Hardy MODS Admin</div>
+                <h2>Каталог, релизы и поддержка</h2>
+                <p>Рабочая панель для модов, заявок пользователей, обновлений и команды.</p>
+              </div>
+              <div className="admin-app-stats">
+                <MiniStat label="Моды" value={String(catalogStats.modCount)} />
+                <MiniStat label="Заявки" value={String(adminSupportCounts.open)} tone="warning" />
+                <MiniStat label="Пользователи" value={String(totalUsers)} tone="success" />
+                <MiniStat label="Админы онлайн" value={String(adminsOnline)} tone="success" />
+              </div>
+            </div>
+
+            <div className="admin-workspace-grid">
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <PrimaryButton onClick={syncAdminFromCatalog}>
@@ -5116,7 +5395,7 @@ function App() {
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <div>
                       <div className="text-lg font-black">Админ Discord</div>
-                      <div className="text-sm text-white/40">Владелец: 1452029134300774414</div>
+                      <div className="text-sm text-white/40">Доступ только для команды</div>
                     </div>
                     <div
                       className={`rounded-full px-3 py-1 text-xs font-black ${
@@ -5558,6 +5837,25 @@ function App() {
         onSubmit={submitSupportMessage}
       />
 
+      <NotificationCenter
+        items={notifications}
+        open={notificationsOpen}
+        onClear={() => {
+          setNotifications([]);
+          writeJsonStorage(NOTIFICATIONS_KEY, []);
+        }}
+        onClose={() => setNotificationsOpen(false)}
+      />
+
+      <DiagnosticsPanel
+        items={gtaDiagnostics}
+        open={diagnosticsOpen}
+        onClose={() => setDiagnosticsOpen(false)}
+        onRun={runGtaDiagnostics}
+      />
+
+      {bootVisible && <BootScreen />}
+
       <PromoPopup
         state={promoState}
         onClose={() => {
@@ -5693,7 +5991,15 @@ const FAQ_FILTERS = [
   { id: "tech", label: "Техническое", icon: <Settings size={15} /> },
 ] as const;
 
-function FaqPage() {
+function FaqPage({
+  downloadCount,
+  modCount,
+  userCount,
+}: {
+  downloadCount: number;
+  modCount: number;
+  userCount: number;
+}) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FAQ_FILTERS)[number]["id"]>("all");
   const [openQuestion, setOpenQuestion] = useState(FAQ_ITEMS[0].question);
@@ -5734,15 +6040,15 @@ function FaqPage() {
 
         <div className="faq-stats">
           <div>
-            <strong>1.4k+</strong>
+            <strong>{modCount}</strong>
             <span>модов</span>
           </div>
           <div>
-            <strong>15k+</strong>
+            <strong>{downloadCount}</strong>
             <span>загрузок</span>
           </div>
           <div>
-            <strong>52k+</strong>
+            <strong>{userCount}</strong>
             <span>пользователей</span>
           </div>
         </div>
@@ -6122,6 +6428,150 @@ function SupportPanel({
   );
 }
 
+function MiniActivityPanel({
+  empty,
+  icon,
+  items,
+  title,
+}: {
+  empty: string;
+  icon: ReactNode;
+  items: string[];
+  title: string;
+}) {
+  return (
+    <div className="mini-activity-panel">
+      <div className="mini-activity-title">
+        {icon}
+        <span>{title}</span>
+      </div>
+      {items.length > 0 ? (
+        items.map((item) => (
+          <div key={item} className="mini-activity-row">
+            {item}
+          </div>
+        ))
+      ) : (
+        <div className="mini-activity-empty">{empty}</div>
+      )}
+    </div>
+  );
+}
+
+function NotificationCenter({
+  items,
+  onClear,
+  onClose,
+  open,
+}: {
+  items: NotificationItem[];
+  onClear: () => void;
+  onClose: () => void;
+  open: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="notification-center">
+      <div className="notification-header">
+        <div>
+          <div className="notification-kicker">Центр уведомлений</div>
+          <h3>События приложения</h3>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onClear} className="notification-small-button">
+            Очистить
+          </button>
+          <button type="button" onClick={onClose} className="notification-close-button">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="notification-list">
+        {items.length === 0 ? (
+          <div className="notification-empty">Пока нет уведомлений</div>
+        ) : (
+          items.map((item) => (
+            <div key={item.id} className={`notification-item notification-item--${item.tone}`}>
+              <span />
+              <div>
+                <strong>{item.message}</strong>
+                <small>{formatSupportDate(item.time)}</small>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DiagnosticsPanel({
+  items,
+  onClose,
+  onRun,
+  open,
+}: {
+  items: GtaDiagnostic[];
+  onClose: () => void;
+  onRun: () => void;
+  open: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="diagnostics-panel">
+      <div className="diagnostics-header">
+        <div>
+          <div className="notification-kicker">Авто-диагностика GTA</div>
+          <h3>Проверка перед установкой</h3>
+        </div>
+        <button type="button" onClick={onClose} className="notification-close-button">
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="diagnostics-list">
+        {items.map((item) => (
+          <div key={item.label} className={`diagnostic-row diagnostic-row--${item.status}`}>
+            {item.status === "ok" ? (
+              <CheckCircle2 size={19} />
+            ) : item.status === "warning" ? (
+              <AlertTriangle size={19} />
+            ) : (
+              <X size={19} />
+            )}
+            <div>
+              <strong>{item.label}</strong>
+              <span>{item.text}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <PurpleButton onClick={onRun}>
+        <RefreshCw size={18} />
+        Проверить ещё раз
+      </PurpleButton>
+    </div>
+  );
+}
+
+function BootScreen() {
+  return (
+    <div className="boot-screen">
+      <div className="boot-logo">
+        <BrandWordmark variant="mini" />
+      </div>
+      <div className="boot-title">Hardy MODS</div>
+      <div className="boot-line">
+        <span />
+      </div>
+    </div>
+  );
+}
+
 function DiscordLoginScreen({
   cardSources,
   loading,
@@ -6335,16 +6785,20 @@ function ModDescriptionPanel({
 }
 
 function ModCard({
+  favorite,
   item,
   installed,
   loading,
+  onFavorite,
   onOpen,
   onInstall,
   onRestore,
 }: {
+  favorite: boolean;
   item: ModItem;
   installed?: InstalledMod;
   loading: boolean;
+  onFavorite: () => void;
   onOpen: () => void;
   onInstall: (variant?: ModVariant) => void;
   onRestore: () => void;
@@ -6380,7 +6834,17 @@ function ModCard({
       </button>
 
       <div className="p-6">
-        <h3 className="text-3xl font-black">{item.name}</h3>
+        <div className="mod-card-title-row">
+          <h3 className="text-3xl font-black">{item.name}</h3>
+          <button
+            type="button"
+            onClick={onFavorite}
+            className={favorite ? "favorite-button favorite-button--active" : "favorite-button"}
+            title={favorite ? "Убрать из избранного" : "Добавить в избранное"}
+          >
+            <Star size={18} />
+          </button>
+        </div>
         <ModDescriptionPanel description={item.description} compact />
         <p className="mt-3 text-white/35">
           {item.size}

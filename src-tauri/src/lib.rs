@@ -1190,6 +1190,10 @@ fn clean_rpf_tool_error(stdout: &str, stderr: &str) -> String {
     let combined = format!("{}\n{}", stdout, stderr);
     let lower = combined.to_lowercase();
 
+    if lower.contains("being used by another process") {
+        return "Файл занят другой программой. Закрой GTA V, OpenIV и попробуй снова.".to_string();
+    }
+
     if lower.contains("object reference not set") {
         return "Hardy RPF не смог прочитать структуру архива. Попробуй открыть копию из mods/update/update.rpf или нажми разблокировку RPF.".to_string();
     }
@@ -1326,11 +1330,27 @@ fn list_rpf_entries_blocking(exe: &Path, rpf_path: &Path) -> Result<Vec<RpfArchi
         ps_output.status.code().unwrap_or(-1)
     ));
 
-    Err(format!(
-        "RPF helper не вернул список файлов для {}. {}",
-        rpf_path.display(),
-        errors.join(" | ")
-    ))
+    let joined_errors = errors.join(" | ");
+    let lower_errors = joined_errors.to_lowercase();
+
+    if lower_errors.contains("файл занят другой программой") {
+        return Err(
+            "Файл занят другой программой. Закрой GTA V, OpenIV и попробуй снова.".to_string(),
+        );
+    }
+
+    if lower_errors.contains("object reference") || lower_errors.contains("структуру архива")
+    {
+        return Err(
+            "RPF не прочитался. Попробуй разблокировать архив или выбрать копию из mods/update."
+                .to_string(),
+        );
+    }
+
+    Err(
+        "RPF helper не смог прочитать архив. Выбери файл вручную или попробуй разблокировку RPF."
+            .to_string(),
+    )
 }
 
 #[tauri::command]
@@ -1366,10 +1386,20 @@ fn resolve_default_update_rpf(app: tauri::AppHandle, gta_path: String) -> Result
         }
     }
 
-    Err(format!(
-        "Ни один update.rpf не прочитался автоматически. {}",
-        errors.join(" | ")
-    ))
+    let joined_errors = errors.join(" | ");
+    let lower_errors = joined_errors.to_lowercase();
+
+    if lower_errors.contains("файл занят другой программой") {
+        return Err(
+            "update.rpf занят другой программой. Закрой GTA V, OpenIV и попробуй снова."
+                .to_string(),
+        );
+    }
+
+    Err(
+        "update.rpf не открылся автоматически. Выбери файл вручную или нажми разблокировку RPF."
+            .to_string(),
+    )
 }
 
 #[tauri::command]
