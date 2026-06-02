@@ -1,11 +1,11 @@
 {
-  "version": "0.1.83",
-  "notes": "Архивы RPF теперь проверяют читаемость обоих update.rpf, пробуют запуск helper напрямую, через cmd.exe и через powershell.exe, а ошибка показывает результат авто-проверки.",
-  "pub_date": "2026-05-26T21:57:55.601Z",
+  "version": "0.1.84",
+  "notes": "Добавлены FAQ и отказ от ответственности, статус перенесён в плавающий блок с процентом загрузки, а восстановление мода очищает backup, temp и скачанный zip.",
+  "pub_date": "2026-06-02T12:49:24.617Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTlic1JERXBOcnNKQVFOWjFGVHRkZElFSTVmTk5ZNzRMaEJqSGFpb05Dc0ZBNHBHWlpneURIYlVHZCs2OUsvK2MyaUpYazFJd1ZYVHZNTFU3ZzJuL0FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5ODMyNjI3CWZpbGU6SGFyZHkgTU9EU18wLjEuODNfeDY0LXNldHVwLmV4ZQp0OUs4VzdUaFk0Vzc5K2hBbm5RTGE1eGtTUitTWU5IWjAxYXlyRWF3NEIzdm82LysvenZaRG1PVGJFTHRrRVMwanJ4ZiszTkg0eThRQzh3dEFYYkFBUT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.83/Hardy.MODS_0.1.83_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTNIS2pENzBYeGVldzc5dUxIYXV4Q2EwNFFua0FJOUJ6ZDhJMGxQQVRpelNxeFNjL29lTXh3MHZjYjFER2licER3S0dISEIveVNoY2M0TGZyUUx5eWdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNDA0NTA5CWZpbGU6SGFyZHkgTU9EU18wLjEuODRfeDY0LXNldHVwLmV4ZQpxdUZZaGh1aFRnb3laaTFlM2dxdmM5WmdsempxWjRFVFRXRXJYZ2ZJQzRKWlBNaWN2aEo5MFhDS2pXQm9LM3RzWkx0TzF3QmJ2OEZKajRQZFVBanZDZz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.84/Hardy.MODS_0.1.84_x64-setup.exe"
     }
   }
 }

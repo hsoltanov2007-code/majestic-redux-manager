@@ -867,7 +867,7 @@ async fn download_file_stream(
         if total > 0 {
             let progress = ((downloaded as f64 / total as f64) * 100.0) as u64;
 
-            emit_progress(app, progress.min(100), "Downloading");
+            emit_progress(app, progress.min(100), "Скачивание");
         }
     }
 
@@ -980,7 +980,7 @@ async fn install_redux(
     gta_path: String,
     rpf_patches: Vec<RpfPatch>,
 ) -> Result<AppState, String> {
-    emit_progress(&app, 5, "Preparing");
+    emit_progress(&app, 5, "Подготовка");
 
     if is_gta_running()? {
         return Err("Закрой GTA V перед установкой".to_string());
@@ -995,11 +995,11 @@ async fn install_redux(
 
     let zip_path = downloads_dir.join(format!("{}.zip", redux_id));
 
-    emit_progress(&app, 10, "Downloading");
+    emit_progress(&app, 10, "Скачивание");
 
     download_file_stream(&app, &download_url, &zip_path).await?;
 
-    emit_progress(&app, 75, "Installing");
+    emit_progress(&app, 75, "Установка");
 
     let explorer_exe = rpf_explorer_exe(&app)?;
 
@@ -1016,7 +1016,7 @@ async fn install_redux(
     .await
     .map_err(|e| e.to_string())??;
 
-    emit_progress(&app, 100, "Done");
+    emit_progress(&app, 100, "Готово");
 
     Ok(state)
 }
@@ -1041,6 +1041,10 @@ async fn restore_backup(redux_id: String, gta_path: String) -> Result<AppState, 
 
         state.installed_redux.remove(&redux_id);
         save_state_file(&state)?;
+
+        let _ = fs::remove_dir_all(root.join("backups").join(&redux_id));
+        let _ = fs::remove_dir_all(root.join("temp").join(&redux_id));
+        let _ = fs::remove_file(root.join("downloads").join(format!("{}.zip", redux_id)));
 
         Ok(state)
     })

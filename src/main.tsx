@@ -176,6 +176,7 @@ type Page =
   | "modDetail"
   | "rpf"
   | "rpfExplorer"
+  | "faq"
   | "settings"
   | "admin";
 
@@ -268,7 +269,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.83";
+const APP_VERSION = "0.1.84";
 const PROMO_REGISTER_URL = "https://majestic-rp.ru/register?utm_campaign=hrdy";
 const PROMO_DISCORD_URL = "https://discord.gg/hrdy";
 
@@ -3350,7 +3351,7 @@ function App() {
       });
 
       setInstalledRedux(state.installedRedux || {});
-      setStatus("Резервная копия восстановлена");
+      setStatus("Резервная копия восстановлена, временные файлы очищены");
     } catch (err) {
       setStatus("Ошибка восстановления: " + String(err));
     } finally {
@@ -3648,6 +3649,7 @@ function App() {
             <TopButton onClick={openCatalog}>Моды</TopButton>
             <TopButton onClick={() => setPage("rpf")}>Разблокировка RPF</TopButton>
             <TopButton onClick={() => setPage("rpfExplorer")}>Архивы RPF</TopButton>
+            <TopButton onClick={() => setPage("faq")}>FAQ</TopButton>
             <TopButton onClick={() => setPage("settings")}>Настройки</TopButton>
             {canOpenAdmin && <TopButton onClick={openAdmin}>Админ</TopButton>}
           </nav>
@@ -4544,6 +4546,8 @@ function App() {
             </div>
           </ToolPanel>
         )}
+
+        {page === "faq" && <FaqPage />}
 
         {page === "admin" && (
           <ToolPanel title="Панель админа" icon={<FileJson />} onBack={() => setPage("home")}>
@@ -5561,42 +5565,252 @@ function App() {
         }}
       />
 
-      <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-black/45 px-8 py-5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between">
-          <div className="flex items-center gap-3 text-sm font-bold">
-            <span
-              className={`h-3 w-3 rounded-full ${loading ? "bg-yellow-400" : "bg-green-400"}`}
-            />
+      <div className="app-status-hud">
+        <div className={`app-status-dot ${loading ? "app-status-dot--loading" : ""}`} />
 
-            <span>СТАТУС: {status}</span>
+        <div className="app-status-copy">
+          <div className="app-status-kicker">
+            {loading ? installStep || "Выполняется" : "Статус"}
           </div>
+          <div className="app-status-text">{status}</div>
 
-          <div className="flex items-center gap-3">
-            {promoState === "docked" && <PromoDock />}
-
-            <button type="button" onClick={openSupportPanel} className="support-footer-button">
-              <MessageCircle size={18} />
-              Поддержка
-            </button>
-
-            {loading && (
-              <div className="w-[300px]">
-                <div className="mb-2 text-right text-xs text-white/45">{installStep}</div>
-
-                <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full bg-purple-500 transition-all"
-                    style={{
-                      width: `${progress}%`,
-                    }}
-                  />
-                </div>
+          {loading && (
+            <div className="app-status-progress">
+              <div className="app-status-progress-meta">
+                <span>{installStep || "Загрузка"}</span>
+                <strong>{progress}%</strong>
               </div>
-            )}
+
+              <div className="app-status-progress-track">
+                <div
+                  className="app-status-progress-bar"
+                  style={{
+                    width: `${Math.max(0, Math.min(progress, 100))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="app-floating-actions">
+        {promoState === "docked" && <PromoDock />}
+
+        <button type="button" onClick={openSupportPanel} className="support-footer-button">
+          <MessageCircle size={18} />
+          Поддержка
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const FAQ_ITEMS = [
+  {
+    answer:
+      "Hardy MODS - каталог модификаций для GTA V с установкой, восстановлением и удобной админкой каталога.",
+    category: "general",
+    icon: <FileText size={19} />,
+    question: "Что такое Hardy MODS?",
+  },
+  {
+    answer:
+      "Да, каталог и приложение доступны бесплатно. Отдельные условия могут быть только у авторов конкретных модификаций.",
+    category: "general",
+    icon: <CheckCircle2 size={19} />,
+    question: "Это бесплатно?",
+  },
+  {
+    answer:
+      "Войди через Discord, выбери папку GTA V, открой каталог и нажми установку нужного мода.",
+    category: "general",
+    icon: <LogIn size={19} />,
+    question: "Как начать пользоваться?",
+  },
+  {
+    answer:
+      "Открой карточку мода, выбери нужный вариант, дождись окончания загрузки и не запускай GTA V во время установки.",
+    category: "mods",
+    icon: <Download size={19} />,
+    question: "Как установить мод?",
+  },
+  {
+    answer:
+      "Если у мода есть варианты, в карточке будут отдельные кнопки. Приложение сохранит, какой вариант установлен.",
+    category: "mods",
+    icon: <Layers size={19} />,
+    question: "Как выбрать светлый или тёмный вариант?",
+  },
+  {
+    answer:
+      "Нажми восстановление на карточке мода. После восстановления приложение удалит временные загрузки и backup этого мода.",
+    category: "mods",
+    icon: <RotateCcw size={19} />,
+    question: "Как удалить мод и вернуть файлы?",
+  },
+  {
+    answer:
+      "Аккаунт нужен для входа через Discord, поддержки и доступа к админ-панели, если у тебя есть роль.",
+    category: "account",
+    icon: <User size={19} />,
+    question: "Зачем нужен аккаунт?",
+  },
+  {
+    answer:
+      "Внизу справа есть кнопка поддержки. Сообщение попадёт в админку, где админы смогут ответить.",
+    category: "account",
+    icon: <MessageCircle size={19} />,
+    question: "Как написать в поддержку?",
+  },
+  {
+    answer:
+      "Закрой GTA V, проверь путь к игре и попробуй открыть мод заново. Если ошибка повторится, отправь статус в поддержку.",
+    category: "tech",
+    icon: <Settings size={19} />,
+    question: "Что делать при ошибке установки?",
+  },
+  {
+    answer:
+      "Раздел Архивы RPF пытается открыть mods/update/update.rpf и update/update.rpf, а затем показывает структуру как проводник.",
+    category: "tech",
+    icon: <FolderOpen size={19} />,
+    question: "Как работает открытие RPF?",
+  },
+  {
+    answer:
+      "В настройках нажми проверку обновления. При скачивании процент будет показан в статусном блоке приложения.",
+    category: "tech",
+    icon: <RefreshCw size={19} />,
+    question: "Как обновить приложение?",
+  },
+] as const;
+
+const FAQ_FILTERS = [
+  { id: "all", label: "Общие", icon: <Info size={15} /> },
+  { id: "mods", label: "Модификации", icon: <Gamepad2 size={15} /> },
+  { id: "account", label: "Аккаунт", icon: <User size={15} /> },
+  { id: "tech", label: "Техническое", icon: <Settings size={15} /> },
+] as const;
+
+function FaqPage() {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<(typeof FAQ_FILTERS)[number]["id"]>("all");
+  const [openQuestion, setOpenQuestion] = useState(FAQ_ITEMS[0].question);
+
+  const visibleItems = FAQ_ITEMS.filter((item) => {
+    const matchesFilter = filter === "all" || item.category === filter;
+    const text = `${item.question} ${item.answer}`.toLowerCase();
+    return matchesFilter && text.includes(query.trim().toLowerCase());
+  });
+
+  return (
+    <section className="faq-page">
+      <div className="faq-disclaimer">
+        <div className="faq-disclaimer-title">
+          <Info size={17} />
+          Отказ от ответственности
+        </div>
+
+        <p>
+          Этот сайт является неофициальным фан-ресурсом. Мы не связаны с Rockstar Games или Take-Two
+          Interactive. Все права на Grand Theft Auto V принадлежат их владельцам. Моды
+          предоставляются исключительно для образовательных и развлекательных целей. Мы не
+          распространяем файлы, нарушающие авторские права.
+        </p>
+      </div>
+
+      <div className="faq-hero">
+        <div className="faq-pill">
+          <Info size={15} />
+          Центр помощи
+        </div>
+
+        <h2>
+          <span>FAQ</span> & Ответы
+        </h2>
+
+        <p>Собрали ответы на частые вопросы о модах, установке и аккаунте.</p>
+
+        <div className="faq-stats">
+          <div>
+            <strong>1.4k+</strong>
+            <span>модов</span>
+          </div>
+          <div>
+            <strong>15k+</strong>
+            <span>загрузок</span>
+          </div>
+          <div>
+            <strong>52k+</strong>
+            <span>пользователей</span>
           </div>
         </div>
-      </footer>
-    </div>
+      </div>
+
+      <label className="faq-search">
+        <Search size={19} />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Поиск по вопросам..."
+        />
+      </label>
+
+      <div className="faq-filters">
+        {FAQ_FILTERS.map((item) => {
+          const count =
+            item.id === "all"
+              ? FAQ_ITEMS.length
+              : FAQ_ITEMS.filter((faq) => faq.category === item.id).length;
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={filter === item.id ? "faq-filter faq-filter--active" : "faq-filter"}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.icon}
+              {item.label}
+              <span>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="faq-list">
+        {visibleItems.map((item) => {
+          const isOpen = openQuestion === item.question;
+
+          return (
+            <article
+              key={item.question}
+              className={isOpen ? "faq-item faq-item--open" : "faq-item"}
+            >
+              <button
+                type="button"
+                className="faq-question"
+                onClick={() => setOpenQuestion(isOpen ? "" : item.question)}
+              >
+                <span className="faq-question-icon">{item.icon}</span>
+                <strong>{item.question}</strong>
+                <ChevronRight size={19} />
+              </button>
+
+              {isOpen && <p>{item.answer}</p>}
+            </article>
+          );
+        })}
+
+        {visibleItems.length === 0 && (
+          <div className="faq-empty">
+            <Search size={28} />
+            Ничего не найдено
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
