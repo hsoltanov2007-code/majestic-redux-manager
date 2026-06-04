@@ -1,11 +1,11 @@
 {
-  "version": "0.1.87",
-  "notes": "Admin uploads, RPF builder, backup manager, validation, reports, and install stats",
-  "pub_date": "2026-06-04T14:10:12.192Z",
+  "version": "0.1.88",
+  "notes": "Public mod share links with app deep-link open and latest installer fallback",
+  "pub_date": "2026-06-04T14:35:32.068Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZS9XbkhjbmJkbGcybitGYmpuVi9xWU45R1g4Nk5zc1ZPalRnUUhLRXdCUzR6dlZucXovZlliMy9kS0NQTit4aXp4OXlvZVRhdTJqQXp2ZGJXSG55YUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTgyMTk2CWZpbGU6SGFyZHkgTU9EU18wLjEuODdfeDY0LXNldHVwLmV4ZQo3bVRYTGJIZC9jQUdrNkhvUzE4cUZ4c2lMQUtxMXdlMWdPQm53RVl4YkVxdCtnR1Y0UEZtZWd5RmJlNXcwTXRZS3RxL3FBbzM1SDlGbXBVL2REeDdDQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.87/Hardy.MODS_0.1.87_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTZ0dVAzRmZZa0VYRllPRDlZMnQ2bW0zaE5xYkc4RGZrVW9uMll4WCtvazhwc1liSGlFTC9vcFhpYkF2WUt6R3RtQ09HM3g2aEhRL1UxMzN0WHJ3Y2c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTgzNzAxCWZpbGU6SGFyZHkgTU9EU18wLjEuODhfeDY0LXNldHVwLmV4ZQpHdzRJaVFaSDg3VjNDL05hVktuQTVLSHhSSDJmWVhXcC8wcHg3UysrdHJnZC91Z0NldlJYRS8yTW1pSnVRa3l6OFZkU0IzNnl1UWpWMnVuUDRlMHJEQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.88/Hardy.MODS_0.1.88_x64-setup.exe"
     }
   }
 }
