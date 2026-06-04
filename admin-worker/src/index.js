@@ -45,6 +45,12 @@ export default {
         return json(request, env, await updatePresence(env, user));
       }
 
+      if (route === "POST /api/install-event") {
+        const user = await requireUser(request, env);
+        const body = await readJson(request);
+        return json(request, env, await recordInstallEvent(env, user, body));
+      }
+
       if (route === "GET /api/stats") {
         await requireRole(request, env, "admin");
         return json(request, env, await getAppStats(env));
@@ -88,6 +94,16 @@ export default {
       if (route === "POST /api/github-token-check") {
         await requireRole(request, env, "owner");
         return json(request, env, await checkGithubToken(env));
+      }
+
+      if (route === "POST /api/assets/file") {
+        const user = await requireRole(request, env, "admin");
+        return json(request, env, await uploadRepoFileAsset(request, env, user));
+      }
+
+      if (route === "POST /api/assets/release") {
+        const user = await requireRole(request, env, "admin");
+        return json(request, env, await uploadReleaseAsset(request, env, user));
       }
 
       if (route === "POST /api/admins") {
@@ -543,6 +559,7 @@ async function getAppStats(env, presenceState) {
   const adminState = await getAdminState(env);
   const knownUsers = await getKnownUsersState(env);
   const presence = presenceState || (await getPresenceState(env));
+  const installStats = await getInstallStats(env);
   const cutoff = Date.now() - 1000 * 60 * 2.5;
   const onlineUsers = Object.values(presence.users || {}).filter((entry) => {
     const seen = Date.parse(entry?.lastSeenAt || "");
@@ -559,9 +576,94 @@ async function getAppStats(env, presenceState) {
   return {
     adminsOnline: onlineUsers.filter((entry) => ["owner", "admin"].includes(entry.role)).length,
     adminsTotal,
+    downloadsTotal: installStats.downloadsTotal || 0,
+    popularMods: installStats.popularMods || [],
+    recentInstalls: installStats.recentInstalls || [],
     totalUsers: knownIds.size,
     usersOnline: onlineUsers.length,
   };
+}
+
+async function getInstallStats(env) {
+  try {
+    const state = await readJsonFile(
+      env,
+      env.DATA_REPO,
+      env.INSTALL_STATS_PATH || "admin/install-stats.json",
+    );
+
+    return {
+      downloadsTotal: Number(state.downloadsTotal || 0),
+      popularMods: Array.isArray(state.popularMods) ? state.popularMods : [],
+      recentInstalls: Array.isArray(state.recentInstalls) ? state.recentInstalls : [],
+      schemaVersion: 1,
+    };
+  } catch {
+    return {
+      downloadsTotal: 0,
+      popularMods: [],
+      recentInstalls: [],
+      schemaVersion: 1,
+    };
+  }
+}
+
+async function recordInstallEvent(env, user, body) {
+  const modId = String(body.modId || "").trim();
+  const modName = String(body.modName || "").trim();
+  const action = String(body.action || "install").trim() === "restore" ? "restore" : "install";
+
+  if (!modId || !modName) {
+    throw httpError(400, "Install event needs modId and modName");
+  }
+
+  const state = await getInstallStats(env);
+  const now = new Date().toISOString();
+  const popular = new Map(
+    state.popularMods.map((entry) => [
+      entry.modId,
+      {
+        count: Number(entry.count || 0),
+        modId: entry.modId,
+        modName: entry.modName || entry.modId,
+      },
+    ]),
+  );
+
+  if (action === "install") {
+    const current = popular.get(modId) || { count: 0, modId, modName };
+    current.count += 1;
+    current.modName = modName;
+    popular.set(modId, current);
+    state.downloadsTotal += 1;
+  }
+
+  state.popularMods = [...popular.values()]
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 25);
+  state.recentInstalls = [
+    {
+      action,
+      modId,
+      modName,
+      time: now,
+      userId: user.id,
+      username: user.username || "",
+      variantName: String(body.variantName || "").trim(),
+      version: String(body.version || "").trim(),
+    },
+    ...state.recentInstalls,
+  ].slice(0, 80);
+
+  await writeJsonFile(
+    env,
+    env.DATA_REPO,
+    env.INSTALL_STATS_PATH || "admin/install-stats.json",
+    state,
+    `Track ${action} ${modId}`,
+  );
+
+  return state;
 }
 
 async function getSupportState(env) {
@@ -668,6 +770,209 @@ async function replySupportTicket(env, ticketId, body, admin) {
   );
 
   return getSupportForAdmin(env);
+}
+
+async function uploadRepoFileAsset(request, env, user) {
+  const url = new URL(request.url);
+  const repo = resolveRepo(env, url.searchParams.get("repo") || "data");
+  const path = normalizeRepoAssetPath(url.searchParams.get("path") || "");
+  const contentType = request.headers.get("Content-Type") || "application/octet-stream";
+  const body = new Uint8Array(await request.arrayBuffer());
+
+  if (body.byteLength === 0) {
+    throw httpError(400, "File body is empty");
+  }
+
+  if (body.byteLength > 10 * 1024 * 1024) {
+    throw httpError(413, "Image/file upload is limited to 10 MB");
+  }
+
+  const value = {
+    contentType,
+    uploadedBy: user.id,
+    uploadedAt: new Date().toISOString(),
+  };
+  const encodedPath = encodeURIComponentPath(path);
+  let sha;
+  const current = await github(env, `/repos/${repo}/contents/${encodedPath}`);
+
+  if (current.ok) {
+    sha = (await current.json()).sha;
+  } else if (current.status !== 404) {
+    throw httpError(current.status, `GitHub SHA read failed for ${path}`);
+  }
+
+  const response = await github(env, `/repos/${repo}/contents/${encodedPath}`, {
+    body: JSON.stringify({
+      branch: env.GITHUB_BRANCH || "main",
+      content: bytesToBase64(body),
+      message: `Upload catalog asset ${path} by Discord ${user.id}`,
+      ...(sha ? { sha } : {}),
+    }),
+    method: "PUT",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw httpError(response.status, `GitHub asset upload failed: ${text}`);
+  }
+
+  return {
+    ok: true,
+    path,
+    repo,
+    url: rawGithubUrl(repo, env.GITHUB_BRANCH || "main", path),
+    ...value,
+  };
+}
+
+async function uploadReleaseAsset(request, env, user) {
+  const url = new URL(request.url);
+  const repo = resolveRepo(env, url.searchParams.get("repo") || "data");
+  const tag = sanitizeTag(url.searchParams.get("tag") || "");
+  const name = sanitizeAssetName(url.searchParams.get("name") || "");
+  const contentType = request.headers.get("Content-Type") || "application/octet-stream";
+  const body = await request.arrayBuffer();
+
+  if (!tag || !name) {
+    throw httpError(400, "Release upload needs tag and name");
+  }
+
+  if (body.byteLength === 0) {
+    throw httpError(400, "Release asset body is empty");
+  }
+
+  const release = await ensureRelease(env, repo, tag, user);
+  await deleteReleaseAssetIfExists(env, repo, release.id, name);
+
+  const uploadResponse = await githubUpload(
+    env,
+    `/repos/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(name)}`,
+    {
+      body,
+      headers: {
+        "Content-Type": contentType,
+      },
+      method: "POST",
+    },
+  );
+
+  if (!uploadResponse.ok) {
+    const text = await uploadResponse.text();
+    throw httpError(uploadResponse.status, `GitHub release asset upload failed: ${text}`);
+  }
+
+  const asset = await uploadResponse.json();
+
+  return {
+    assetId: asset.id,
+    contentType,
+    name: asset.name,
+    ok: true,
+    repo,
+    size: asset.size,
+    tag,
+    uploadedBy: user.id,
+    url: asset.browser_download_url,
+  };
+}
+
+async function ensureRelease(env, repo, tag, user) {
+  const existing = await github(env, `/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`);
+
+  if (existing.ok) {
+    return existing.json();
+  }
+
+  if (existing.status !== 404) {
+    throw httpError(existing.status, `GitHub release lookup failed for ${tag}`);
+  }
+
+  const response = await github(env, `/repos/${repo}/releases`, {
+    body: JSON.stringify({
+      body: `Assets uploaded from Hardy MODS admin by Discord ${user.id}.`,
+      draft: false,
+      name: tag,
+      prerelease: false,
+      tag_name: tag,
+      target_commitish: env.GITHUB_BRANCH || "main",
+    }),
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw httpError(response.status, `GitHub release create failed: ${text}`);
+  }
+
+  return response.json();
+}
+
+async function deleteReleaseAssetIfExists(env, repo, releaseId, assetName) {
+  const response = await github(env, `/repos/${repo}/releases/${releaseId}/assets?per_page=100`);
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw httpError(response.status, `GitHub release assets read failed: ${text}`);
+  }
+
+  const assets = await response.json();
+  const existing = assets.find((asset) => asset.name === assetName);
+
+  if (!existing) return;
+
+  const deleted = await github(env, `/repos/${repo}/releases/assets/${existing.id}`, {
+    method: "DELETE",
+  });
+
+  if (!deleted.ok && deleted.status !== 404) {
+    const text = await deleted.text();
+    throw httpError(deleted.status, `GitHub old asset delete failed: ${text}`);
+  }
+}
+
+function resolveRepo(env, key) {
+  if (key === "manager") return env.MANAGER_REPO;
+  if (key === "data") return env.DATA_REPO;
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(key)) return key;
+  throw httpError(400, "Unknown repo target");
+}
+
+function normalizeRepoAssetPath(path) {
+  const normalized = String(path || "").replaceAll("\\", "/").replace(/^\/+/, "").trim();
+
+  if (!normalized || normalized.includes("..") || normalized.startsWith(".git/")) {
+    throw httpError(400, "Bad asset path");
+  }
+
+  if (!/^(images|admin\/uploads)\//.test(normalized)) {
+    throw httpError(400, "Assets can be uploaded only into images/ or admin/uploads/");
+  }
+
+  return normalized;
+}
+
+function sanitizeAssetName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, ".")
+    .slice(0, 140);
+}
+
+function sanitizeTag(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
+function rawGithubUrl(repo, branch, path) {
+  return `https://raw.githubusercontent.com/${repo}/${encodeURIComponent(branch)}/${path
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
 }
 
 async function checkGithubToken(env) {
@@ -807,11 +1112,40 @@ function validateCatalog(catalog) {
         }
 
         for (const patch of mod.rpfPatches) {
-          if (!patch?.rpfPath || !patch?.internalPath || !patch?.file) {
+          if (!patch?.rpfPath || !patch?.file) {
             throw httpError(
               400,
-              `Each RPF patch for ${mod.id} needs rpfPath, internalPath and file`,
+              `Each RPF patch for ${mod.id} needs rpfPath and file`,
             );
+          }
+        }
+      }
+
+      if (mod.variants !== undefined) {
+        if (!Array.isArray(mod.variants)) {
+          throw httpError(400, `variants for ${mod.id} must be an array`);
+        }
+
+        for (const variant of mod.variants) {
+          if (!variant?.id || !variant?.name || !variant?.downloadUrl) {
+            throw httpError(400, `Each variant for ${mod.id} needs id, name and downloadUrl`);
+          }
+
+          validateHttpUrl(variant.downloadUrl, `Invalid variant downloadUrl for ${mod.id}`);
+
+          if (variant.rpfPatches !== undefined) {
+            if (!Array.isArray(variant.rpfPatches)) {
+              throw httpError(400, `variant rpfPatches for ${mod.id} must be an array`);
+            }
+
+            for (const patch of variant.rpfPatches) {
+              if (!patch?.rpfPath || !patch?.file) {
+                throw httpError(
+                  400,
+                  `Each variant RPF patch for ${mod.id} needs rpfPath and file`,
+                );
+              }
+            }
           }
         }
       }
@@ -898,6 +1232,21 @@ async function github(env, path, init = {}) {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       "Content-Type": "application/json",
+      "User-Agent": "majestic-redux-manager",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(init.headers || {}),
+    },
+  });
+}
+
+async function githubUpload(env, path, init = {}) {
+  requireEnv(env, ["GITHUB_TOKEN"]);
+
+  return fetch(`https://uploads.github.com${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       "User-Agent": "majestic-redux-manager",
       "X-GitHub-Api-Version": "2022-11-28",
       ...(init.headers || {}),
@@ -1075,8 +1424,18 @@ function encodeURIComponentPath(path) {
 
 function textToBase64(text) {
   const bytes = new TextEncoder().encode(text);
+  return bytesToBase64(bytes);
+}
+
+function bytesToBase64(bytes) {
   let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
   return btoa(binary);
 }
 
