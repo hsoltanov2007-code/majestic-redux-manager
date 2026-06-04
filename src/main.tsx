@@ -144,6 +144,19 @@ type AdminStateDocument = {
 type AppStats = {
   adminsOnline: number;
   adminsTotal: number;
+  downloadsTotal?: number;
+  popularMods?: {
+    count: number;
+    modId: string;
+    modName: string;
+  }[];
+  recentInstalls?: Array<
+    InstallHistoryItem & {
+      modId?: string;
+      userId?: string;
+      username?: string;
+    }
+  >;
   totalUsers: number;
   usersOnline: number;
 };
@@ -282,6 +295,21 @@ type AuthResult = {
   message?: string;
 };
 
+type AdminCatalogIssue = {
+  key: string;
+  message: string;
+  severity: "error" | "warning";
+};
+
+type AdminAssetUploadResult = {
+  ok: boolean;
+  path?: string;
+  repo: string;
+  size?: number;
+  tag?: string;
+  url: string;
+};
+
 type TauriWindow = Window & {
   __TAURI_INTERNALS__?: unknown;
 };
@@ -295,7 +323,7 @@ const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.85";
+const APP_VERSION = "0.1.87";
 const FAVORITES_KEY = "hardy-favorites";
 const INSTALL_HISTORY_KEY = "hardy-install-history";
 const NOTIFICATIONS_KEY = "hardy-notifications";
@@ -586,6 +614,161 @@ function modHasDownload(mod: ModItem) {
   );
 }
 
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function looksLikeZipUrl(value: string) {
+  const clean = value.trim().toLowerCase();
+  return clean.includes(".zip") || clean.includes("/releases/download/");
+}
+
+function compareVersionParts(left: string, right: string) {
+  const leftParts = getDisplayVersion(left)
+    .split(/[.-]/)
+    .map((part) => Number.parseInt(part, 10));
+  const rightParts = getDisplayVersion(right)
+    .split(/[.-]/)
+    .map((part) => Number.parseInt(part, 10));
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const leftValue = Number.isFinite(leftParts[index]) ? leftParts[index] : 0;
+    const rightValue = Number.isFinite(rightParts[index]) ? rightParts[index] : 0;
+
+    if (leftValue > rightValue) return 1;
+    if (leftValue < rightValue) return -1;
+  }
+
+  return 0;
+}
+
+function validateAdminCatalog(catalog: Category[], publishedCatalog: Category[]) {
+  const issues: AdminCatalogIssue[] = [];
+  const seenModIds = new Map<string, string>();
+  const publishedMods = new Map<string, ModItem>();
+
+  for (const category of publishedCatalog) {
+    for (const mod of category.mods) {
+      publishedMods.set(mod.id, mod);
+    }
+  }
+
+  for (const category of catalog) {
+    if (!category.id.trim() || !category.title.trim()) {
+      issues.push({
+        key: `category:${category.id || "empty"}`,
+        message: `Категория "${category.title || category.id || "без имени"}" должна иметь ID и название.`,
+        severity: "error",
+      });
+    }
+
+    for (const mod of category.mods) {
+      const label = `${category.title || category.id} / ${mod.name || mod.id}`;
+      const previousLocation = seenModIds.get(mod.id);
+
+      if (!mod.id.trim() || !mod.name.trim() || !mod.version.trim()) {
+        issues.push({
+          key: `mod:${category.id}:${mod.id}:required`,
+          message: `${label}: нужны ID, название и версия.`,
+          severity: "error",
+        });
+      }
+
+      if (previousLocation) {
+        issues.push({
+          key: `mod:${category.id}:${mod.id}:duplicate`,
+          message: `${label}: ID уже используется в ${previousLocation}.`,
+          severity: "error",
+        });
+      } else if (mod.id) {
+        seenModIds.set(mod.id, label);
+      }
+
+      const hasVariants = Boolean(mod.variants?.length);
+
+      if (!hasVariants) {
+        if (!mod.downloadUrl.trim()) {
+          issues.push({
+            key: `mod:${category.id}:${mod.id}:download`,
+            message: `${label}: нет ссылки на ZIP.`,
+            severity: "error",
+          });
+        } else if (!isHttpUrl(mod.downloadUrl) || !looksLikeZipUrl(mod.downloadUrl)) {
+          issues.push({
+            key: `mod:${category.id}:${mod.id}:download-format`,
+            message: `${label}: ссылка скачивания должна быть прямой http/https ссылкой на ZIP.`,
+            severity: "error",
+          });
+        }
+      }
+
+      const published = publishedMods.get(mod.id);
+
+      if (published && compareVersionParts(mod.version, published.version) <= 0) {
+        issues.push({
+          key: `mod:${category.id}:${mod.id}:version`,
+          message: `${label}: версия ${mod.version} не выше опубликованной ${published.version}.`,
+          severity: "warning",
+        });
+      }
+
+      for (const [patchIndex, patch] of (mod.rpfPatches || []).entries()) {
+        if (!patch.rpfPath.trim() || !patch.file.trim()) {
+          issues.push({
+            key: `mod:${category.id}:${mod.id}:rpf:${patchIndex}`,
+            message: `${label}: RPF замена #${patchIndex + 1} должна иметь rpfPath и файл из ZIP.`,
+            severity: "error",
+          });
+        }
+
+        if (patch.rpfPath && !patch.rpfPath.toLowerCase().includes(".rpf")) {
+          issues.push({
+            key: `mod:${category.id}:${mod.id}:rpf-path:${patchIndex}`,
+            message: `${label}: rpfPath замены #${patchIndex + 1} должен указывать на .rpf.`,
+            severity: "error",
+          });
+        }
+      }
+
+      for (const [variantIndex, variant] of (mod.variants || []).entries()) {
+        const variantLabel = `${label} / ${variant.name || variant.id || `вариант ${variantIndex + 1}`}`;
+
+        if (!variant.id.trim() || !variant.name.trim() || !variant.downloadUrl.trim()) {
+          issues.push({
+            key: `variant:${category.id}:${mod.id}:${variantIndex}:required`,
+            message: `${variantLabel}: нужны ID, название кнопки и ZIP ссылка.`,
+            severity: "error",
+          });
+        } else if (!isHttpUrl(variant.downloadUrl) || !looksLikeZipUrl(variant.downloadUrl)) {
+          issues.push({
+            key: `variant:${category.id}:${mod.id}:${variantIndex}:download-format`,
+            message: `${variantLabel}: ссылка должна вести на ZIP.`,
+            severity: "error",
+          });
+        }
+
+        for (const [patchIndex, patch] of (variant.rpfPatches || []).entries()) {
+          if (!patch.rpfPath.trim() || !patch.file.trim()) {
+            issues.push({
+              key: `variant:${category.id}:${mod.id}:${variantIndex}:rpf:${patchIndex}`,
+              message: `${variantLabel}: RPF замена #${patchIndex + 1} должна иметь rpfPath и файл.`,
+              severity: "error",
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
 function getInstallButtonLabel(
   installed: InstalledMod | undefined,
   option: ReturnType<typeof getInstallOptions>[number],
@@ -838,88 +1021,15 @@ function LogoMark({ className = "" }: { className?: string }) {
 }
 
 function GlowCursor() {
-  const ringRef = useRef<HTMLDivElement | null>(null);
-  const dotRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
-    const ring = ringRef.current;
-    const dot = dotRef.current;
-
-    if (!ring || !dot || window.matchMedia("(pointer: coarse)").matches) return;
-
-    let targetX = window.innerWidth / 2;
-    let targetY = window.innerHeight / 2;
-    let ringX = targetX;
-    let ringY = targetY;
-    let frame = 0;
-    let active = false;
-    let interactive = false;
-
-    document.documentElement.classList.add("has-glow-cursor");
-
-    function render() {
-      ringX += (targetX - ringX) * 0.2;
-      ringY += (targetY - ringY) * 0.2;
-
-      const ringScale = interactive ? 1.72 : active ? 0.82 : 1;
-      const dotScale = active ? 0.62 : interactive ? 0.78 : 1;
-
-      ring.style.transform = `translate3d(${(ringX - 19).toFixed(2)}px, ${(ringY - 19).toFixed(
-        2,
-      )}px, 0) scale(${ringScale})`;
-      dot.style.transform = `translate3d(${(targetX - 4).toFixed(2)}px, ${(targetY - 4).toFixed(
-        2,
-      )}px, 0) scale(${dotScale})`;
-
-      frame = window.requestAnimationFrame(render);
-    }
-
-    function setPosition(event: PointerEvent) {
-      targetX = event.clientX;
-      targetY = event.clientY;
-      interactive = Boolean(
-        (event.target as Element | null)?.closest(
-          "button,a,input,textarea,select,[role='button'],[data-cursor='button']",
-        ),
-      );
-      ring.classList.toggle("glow-cursor--interactive", interactive);
-      dot.classList.toggle("glow-cursor--interactive", interactive);
-    }
-
-    function setActive() {
-      active = true;
-      ring.classList.add("glow-cursor--active");
-      dot.classList.add("glow-cursor--active");
-    }
-
-    function resetActive() {
-      active = false;
-      ring.classList.remove("glow-cursor--active");
-      dot.classList.remove("glow-cursor--active");
-    }
-
-    frame = window.requestAnimationFrame(render);
-    window.addEventListener("pointermove", setPosition, { passive: true });
-    window.addEventListener("pointerdown", setActive, { passive: true });
-    window.addEventListener("pointerup", resetActive, { passive: true });
-    window.addEventListener("pointercancel", resetActive, { passive: true });
+    document.documentElement.classList.remove("has-glow-cursor");
 
     return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("pointermove", setPosition);
-      window.removeEventListener("pointerdown", setActive);
-      window.removeEventListener("pointerup", resetActive);
-      window.removeEventListener("pointercancel", resetActive);
       document.documentElement.classList.remove("has-glow-cursor");
     };
   }, []);
 
-  return (
-    <>
-      <div ref={ringRef} className="glow-cursor glow-cursor--ring" />
-      <div ref={dotRef} className="glow-cursor glow-cursor--dot" />
-    </>
-  );
+  return null;
 }
 
 function DiscordIcon({ size = 18 }: { size?: number }) {
@@ -1268,6 +1378,29 @@ function sanitizeId(value: string, fallback: string) {
   );
 }
 
+function sanitizeAssetPart(value: string, fallback: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || fallback
+  );
+}
+
+function fileExtension(name: string, fallback: string) {
+  const clean = name.split(/[\\/]/).pop() || "";
+  const match = clean.match(/\.([a-z0-9]{2,8})$/i);
+  return (match?.[1] || fallback).toLowerCase();
+}
+
+function formatFileSize(size: number) {
+  if (size >= 1024 * 1024 * 1024) return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${size} B`;
+}
+
 function createAdminCategory(index = 1): Category {
   return {
     id: `category-${index}`,
@@ -1497,6 +1630,8 @@ function App() {
   const [adminCatalogQuery, setAdminCatalogQuery] = useState("");
   const [adminCatalogFilter, setAdminCatalogFilter] = useState<AdminCatalogFilter>("all");
   const [activeAdminModKey, setActiveAdminModKey] = useState("");
+  const [adminValidationIssues, setAdminValidationIssues] = useState<AdminCatalogIssue[]>([]);
+  const [adminAssetUploadStatus, setAdminAssetUploadStatus] = useState("");
   const [favoriteMods, setFavoriteMods] = useState<string[]>(() =>
     readJsonStorage<string[]>(FAVORITES_KEY, []),
   );
@@ -1920,6 +2055,34 @@ function App() {
 
   const adminCatalogJson = useMemo(() => catalogToJson(adminCategories), [adminCategories]);
 
+  const allModsById = useMemo(() => {
+    const map = new Map<string, ModItem>();
+
+    for (const category of categories) {
+      for (const mod of category.mods) {
+        map.set(mod.id, mod);
+      }
+    }
+
+    for (const category of adminCategories) {
+      for (const mod of category.mods) {
+        if (!map.has(mod.id)) map.set(mod.id, mod);
+      }
+    }
+
+    return map;
+  }, [adminCategories, categories]);
+
+  const installedBackupItems = useMemo(
+    () =>
+      Object.entries(installedRedux).map(([id, installed]) => ({
+        id,
+        installed,
+        mod: allModsById.get(id),
+      })),
+    [allModsById, installedRedux],
+  );
+
   const catalogStats = useMemo(() => {
     const modCount = adminCategories.reduce((total, category) => total + category.mods.length, 0);
     const missingDownloads = adminCategories.reduce(
@@ -1946,6 +2109,13 @@ function App() {
       modCount,
     };
   }, [adminCategories]);
+
+  const adminValidationSummary = useMemo(() => {
+    const errors = adminValidationIssues.filter((issue) => issue.severity === "error").length;
+    const warnings = adminValidationIssues.filter((issue) => issue.severity === "warning").length;
+
+    return { errors, warnings };
+  }, [adminValidationIssues]);
 
   const adminCatalogView = useMemo(() => {
     const query = adminCatalogQuery.toLowerCase().trim();
@@ -2368,6 +2538,26 @@ function App() {
     );
   }
 
+  function updateAdminModFields(categoryId: string, modId: string, fields: Partial<ModItem>) {
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      ...fields,
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+  }
+
   function addAdminRpfPatch(categoryId: string, modId: string) {
     setAdminCategories((current) =>
       current.map((category) =>
@@ -2386,6 +2576,44 @@ function App() {
           : category,
       ),
     );
+  }
+
+  function addAdminRpfPatchFromExplorer(categoryId: string, modId: string) {
+    if (!rpfExplorerPath.trim()) {
+      setStatus("Сначала открой RPF в разделе Архивы RPF");
+      return;
+    }
+
+    if (!internalPath.trim()) {
+      setStatus("Выбери файл внутри RPF, чтобы создать internalPath");
+      return;
+    }
+
+    const fileName = (replaceFilePath.split(/[\\/]/).pop() || internalPath.split("/").pop() || "file.meta").trim();
+    const nextPatch: RpfPatch = {
+      file: `patch/${fileName}`,
+      internalPath: internalPath.replaceAll("\\", "/").trim(),
+      rpfPath: rpfExplorerPath.replaceAll("\\", "/").trim(),
+    };
+
+    setAdminCategories((current) =>
+      current.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              mods: category.mods.map((mod) =>
+                mod.id === modId
+                  ? {
+                      ...mod,
+                      rpfPatches: [...(mod.rpfPatches || []), nextPatch],
+                    }
+                  : mod,
+              ),
+            }
+          : category,
+      ),
+    );
+    setStatus(`RPF patch создан: ${nextPatch.internalPath} -> ${nextPatch.file}`);
   }
 
   function updateAdminRpfPatch(
@@ -2844,6 +3072,154 @@ function App() {
     return data as T;
   }
 
+  async function uploadAdminModAsset(
+    categoryId: string,
+    mod: ModItem,
+    file: File | undefined,
+    kind: "image" | "zip",
+  ) {
+    if (!file) return;
+
+    if (!canPublishCatalog) {
+      setStatus("Загрузка доступна только owner/admin");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const safeModId = sanitizeAssetPart(mod.id, "mod");
+      const safeVersion = sanitizeAssetPart(mod.version, "1.0.0");
+      const extension = fileExtension(file.name, kind === "zip" ? "zip" : "png");
+
+      if (kind === "zip" && extension !== "zip") {
+        setStatus("Выбери именно .zip архив мода");
+        return;
+      }
+
+      setAdminAssetUploadStatus(
+        `${kind === "zip" ? "Загружаю ZIP" : "Загружаю картинку"}: ${file.name} (${formatFileSize(
+          file.size,
+        )})`,
+      );
+
+      const result =
+        kind === "zip"
+          ? await adminRequest<AdminAssetUploadResult>(
+              `/api/assets/release?repo=data&tag=${encodeURIComponent(
+                `${safeModId}-v${safeVersion}`,
+              )}&name=${encodeURIComponent(`${safeModId}-${safeVersion}.zip`)}`,
+              {
+                body: file,
+                headers: {
+                  "Content-Type": file.type || "application/zip",
+                },
+                method: "POST",
+              },
+            )
+          : await adminRequest<AdminAssetUploadResult>(
+              `/api/assets/file?repo=data&path=${encodeURIComponent(
+                `images/${safeModId}-${safeVersion}.${extension}`,
+              )}`,
+              {
+                body: file,
+                headers: {
+                  "Content-Type": file.type || "application/octet-stream",
+                },
+                method: "POST",
+              },
+            );
+
+      updateAdminModFields(categoryId, mod.id, kind === "zip" ? { downloadUrl: result.url } : { image: result.url });
+      setAdminAssetUploadStatus(
+        `${kind === "zip" ? "ZIP" : "Картинка"} загружен: ${result.url}`,
+      );
+      setAppStatus(
+        `${kind === "zip" ? "ZIP архива" : "Картинка"} для ${mod.name} загружена и прописана`,
+        "success",
+      );
+    } catch (err) {
+      setAppStatus("Загрузка asset не удалась: " + String(err), "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function runAdminCatalogValidation(showSuccess = true) {
+    const issues = validateAdminCatalog(adminCategories, categories);
+    const errors = issues.filter((issue) => issue.severity === "error").length;
+    const warnings = issues.length - errors;
+
+    setAdminValidationIssues(issues);
+
+    if (errors > 0) {
+      setStatus(`Проверка каталога: ${errors} ошибок, ${warnings} предупреждений`);
+      return false;
+    }
+
+    if (showSuccess) {
+      setStatus(
+        warnings > 0
+          ? `Проверка каталога прошла: ${warnings} предупреждений`
+          : "Проверка каталога прошла без ошибок",
+      );
+    }
+
+    return true;
+  }
+
+  async function reportInstallEvent(item: {
+    action: InstallHistoryItem["action"];
+    modId: string;
+    modName: string;
+    variantName?: string;
+    version?: string;
+  }) {
+    if (!adminToken.trim()) return;
+
+    try {
+      const stats = await adminRequest<Partial<AppStats>>("/api/install-event", {
+        body: JSON.stringify(item),
+        method: "POST",
+      });
+      setAppStats((current) => ({
+        adminsOnline: current?.adminsOnline ?? 0,
+        adminsTotal: current?.adminsTotal ?? 0,
+        totalUsers: current?.totalUsers ?? 0,
+        usersOnline: current?.usersOnline ?? 0,
+        ...current,
+        ...stats,
+      }));
+    } catch {
+      // Install should never fail just because stats were unavailable.
+    }
+  }
+
+  async function submitDiagnosticReport() {
+    const message = [
+      "Авто-отчет Hardy MODS",
+      `Статус: ${status}`,
+      `Версия: ${runtimeInfo ? runtimeInfo.version : APP_VERSION}`,
+      `GTA: ${gtaPath || "не выбрана"}`,
+      `Системная папка: ${systemPath || "по умолчанию"}`,
+      `Установлено модов: ${Object.keys(installedRedux).length}`,
+      `Последний шаг: ${installStep || "нет"}`,
+    ].join("\n");
+
+    try {
+      setLoading(true);
+      const support = await adminRequest<SupportStateDocument>("/api/support", {
+        body: JSON.stringify({ message }),
+        method: "POST",
+      });
+      setMySupportTickets(support.tickets);
+      setAppStatus("Отчет отправлен в поддержку", "success");
+    } catch (err) {
+      setAppStatus("Отчет не отправился: " + String(err), "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function refreshPresence() {
     try {
       const stats = await adminRequest<AppStats>("/api/presence", { method: "POST" });
@@ -3094,6 +3470,10 @@ function App() {
   }
 
   async function publishCatalogToAdminApi() {
+    if (!runAdminCatalogValidation(false)) {
+      return;
+    }
+
     try {
       setLoading(true);
       const catalog = buildCatalogDocument(adminCategories);
@@ -3481,6 +3861,13 @@ function App() {
           variantName: variant?.name,
           version: installVersion,
         });
+        void reportInstallEvent({
+          action: "install",
+          modId: item.id,
+          modName: item.name,
+          variantName: variant?.name,
+          version: installVersion,
+        });
         setAppStatus(`${installName} отмечен как установлен в режиме предпросмотра`, "success");
         return;
       }
@@ -3497,6 +3884,13 @@ function App() {
       addInstallHistory({
         action: "install",
         id: item.id,
+        modName: item.name,
+        variantName: variant?.name,
+        version: installVersion,
+      });
+      void reportInstallEvent({
+        action: "install",
+        modId: item.id,
         modName: item.name,
         variantName: variant?.name,
         version: installVersion,
@@ -3529,6 +3923,11 @@ function App() {
           installedRedux: nextInstalled,
         });
         addInstallHistory({ action: "restore", id: item.id, modName: item.name });
+        void reportInstallEvent({
+          action: "restore",
+          modId: item.id,
+          modName: item.name,
+        });
         setAppStatus(`${item.name} удалён из режима предпросмотра`, "success");
         return;
       }
@@ -3540,12 +3939,33 @@ function App() {
 
       setInstalledRedux(state.installedRedux || {});
       addInstallHistory({ action: "restore", id: item.id, modName: item.name });
+      void reportInstallEvent({
+        action: "restore",
+        modId: item.id,
+        modName: item.name,
+      });
       setAppStatus("Резервная копия восстановлена, временные файлы очищены", "success");
     } catch (err) {
       setAppStatus("Ошибка восстановления: " + String(err), "error");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function restoreInstalledBackup(id: string) {
+    const installed = installedRedux[id];
+    const mod =
+      allModsById.get(id) ||
+      ({
+        description: "Восстановление из локальной резервной копии",
+        downloadUrl: "",
+        id,
+        name: id,
+        size: "",
+        version: getDisplayVersion(installed?.version || "1.0.0"),
+      } satisfies ModItem);
+
+    await restoreRedux(mod);
   }
 
   async function chooseRpfFile() {
@@ -3896,10 +4316,18 @@ function App() {
               </button>
             </div>
 
-            <div className="grid grid-cols-[1fr_1fr_1.5fr] border-b border-white/10 text-sm">
+            <div className="grid grid-cols-[1fr_1fr_1fr_1.5fr] border-b border-white/10 text-sm">
               <div className="border-r border-white/10 px-6 py-4">
                 <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
-                  Версия
+                  Сейчас
+                </div>
+                <div className="mt-2 font-mono text-lg text-zinc-200">
+                  v{runtimeInfo ? runtimeInfo.version : APP_VERSION}
+                </div>
+              </div>
+              <div className="border-r border-white/10 px-6 py-4">
+                <div className="text-xs font-black uppercase tracking-[.18em] text-white/35">
+                  Новая
                 </div>
                 <div className="mt-2 font-mono text-lg text-zinc-200">v{tauriUpdate.version}</div>
               </div>
@@ -4825,6 +5253,11 @@ function App() {
               <div className="admin-app-stats">
                 <MiniStat label="Моды" value={String(catalogStats.modCount)} />
                 <MiniStat label="Заявки" value={String(adminSupportCounts.open)} tone="warning" />
+                <MiniStat
+                  label="Скачивания"
+                  value={String(appStats?.downloadsTotal ?? 0)}
+                  tone="success"
+                />
                 <MiniStat label="Пользователи" value={String(totalUsers)} tone="success" />
                 <MiniStat label="Админы онлайн" value={String(adminsOnline)} tone="success" />
               </div>
@@ -4848,6 +5281,10 @@ function App() {
                   <PrimaryButton onClick={() => copyText(adminCatalogJson, "redux.json")}>
                     <Clipboard size={18} />
                     Копировать JSON
+                  </PrimaryButton>
+                  <PrimaryButton onClick={() => runAdminCatalogValidation(true)}>
+                    <ShieldCheck size={18} />
+                    Проверить
                   </PrimaryButton>
                   <PurpleButton onClick={() => downloadTextFile("redux.json", adminCatalogJson)}>
                     <Download size={18} />
@@ -4901,6 +5338,49 @@ function App() {
                 {adminCatalogView.length === 0 && (
                   <div className="rounded-3xl border border-white/10 bg-black/25 p-5 text-sm text-white/45">
                     По этому поиску ничего не найдено.
+                  </div>
+                )}
+
+                {(adminValidationIssues.length > 0 || adminAssetUploadStatus) && (
+                  <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="font-black">Проверка и загрузки</div>
+                      <div className="flex gap-2 text-xs font-black">
+                        <span className="rounded-full bg-red-500/15 px-3 py-1 text-red-100">
+                          Ошибки {adminValidationSummary.errors}
+                        </span>
+                        <span className="rounded-full bg-yellow-400/15 px-3 py-1 text-yellow-100">
+                          Предупреждения {adminValidationSummary.warnings}
+                        </span>
+                      </div>
+                    </div>
+
+                    {adminAssetUploadStatus && (
+                      <div className="mb-3 rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/65">
+                        {adminAssetUploadStatus}
+                      </div>
+                    )}
+
+                    <div className="grid gap-2">
+                      {adminValidationIssues.slice(0, 10).map((issue) => (
+                        <div
+                          key={issue.key}
+                          className={`rounded-2xl border p-3 text-sm ${
+                            issue.severity === "error"
+                              ? "border-red-400/20 bg-red-500/10 text-red-100"
+                              : "border-yellow-300/20 bg-yellow-300/10 text-yellow-100"
+                          }`}
+                        >
+                          {issue.message}
+                        </div>
+                      ))}
+                      {adminValidationIssues.length > 10 && (
+                        <div className="text-sm text-white/45">
+                          Ещё {adminValidationIssues.length - 10} пунктов. Исправь верхние ошибки
+                          и запусти проверку снова.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -5060,6 +5540,65 @@ function App() {
                                   multiline
                                 />
 
+                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[.04] p-4">
+                                  <div className="mb-3 flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="font-black">Загрузка мода из админки</div>
+                                      <div className="text-xs leading-5 text-white/45">
+                                        ZIP попадёт в GitHub Release data-repo и сам пропишет
+                                        downloadUrl. Картинка попадёт в images/ и сам пропишет
+                                        image. Для очень больших архивов оставь ручную ссылку на
+                                        GitHub Release.
+                                      </div>
+                                    </div>
+                                    <Upload size={20} className="text-white/45" />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <label className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm transition hover:bg-white/[.06]">
+                                      <div className="mb-2 flex items-center gap-2 font-black">
+                                        <FileArchive size={17} />
+                                        Выбрать ZIP
+                                      </div>
+                                      <div className="mb-3 text-xs text-white/45">
+                                        Создаст release {mod.id}-v{mod.version}
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept=".zip,application/zip"
+                                        className="w-full text-xs text-white/55"
+                                        disabled={loading || !canPublishCatalog}
+                                        onChange={(event) => {
+                                          const file = event.currentTarget.files?.[0];
+                                          void uploadAdminModAsset(category.id, mod, file, "zip");
+                                          event.currentTarget.value = "";
+                                        }}
+                                      />
+                                    </label>
+
+                                    <label className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm transition hover:bg-white/[.06]">
+                                      <div className="mb-2 flex items-center gap-2 font-black">
+                                        <ImageIcon size={17} />
+                                        Выбрать картинку
+                                      </div>
+                                      <div className="mb-3 text-xs text-white/45">
+                                        Загрузит файл в images/{mod.id}-{mod.version}
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="w-full text-xs text-white/55"
+                                        disabled={loading || !canPublishCatalog}
+                                        onChange={(event) => {
+                                          const file = event.currentTarget.files?.[0];
+                                          void uploadAdminModAsset(category.id, mod, file, "image");
+                                          event.currentTarget.value = "";
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+
                                 <div className="mt-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
                                   <div className="mb-4 flex items-center justify-between gap-3">
                                     <div>
@@ -5076,6 +5615,14 @@ function App() {
                                     >
                                       <Plus size={18} />
                                       Замена RPF
+                                    </PrimaryButton>
+                                    <PrimaryButton
+                                      onClick={() =>
+                                        addAdminRpfPatchFromExplorer(category.id, mod.id)
+                                      }
+                                    >
+                                      <ListTree size={18} />
+                                      Из RPF Explorer
                                     </PrimaryButton>
                                   </div>
 
@@ -5468,6 +6015,54 @@ function App() {
                     <MiniStat label="Онлайн" value={String(appStats?.usersOnline ?? 0)} />
                     <MiniStat label="Админы онлайн" value={String(adminsOnline)} tone="success" />
                     <MiniStat label="Админов" value={String(appStats?.adminsTotal ?? 0)} />
+                    <MiniStat
+                      label="Скачиваний"
+                      value={String(appStats?.downloadsTotal ?? 0)}
+                      tone="success"
+                    />
+                    <MiniStat
+                      label="Популярных"
+                      value={String(appStats?.popularMods?.length ?? 0)}
+                    />
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/[.04] p-3">
+                      <div className="mb-2 text-sm font-black">Популярные моды</div>
+                      <div className="space-y-2 text-sm text-white/55">
+                        {(appStats?.popularMods || []).slice(0, 5).map((item) => (
+                          <div key={item.modId} className="flex items-center justify-between gap-3">
+                            <span>{item.modName || item.modId}</span>
+                            <strong className="text-white">{item.count}</strong>
+                          </div>
+                        ))}
+                        {(appStats?.popularMods || []).length === 0 && (
+                          <div>Скачиваний пока нет.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[.04] p-3">
+                      <div className="mb-2 text-sm font-black">Последние установки</div>
+                      <div className="space-y-2 text-sm text-white/55">
+                        {(appStats?.recentInstalls || []).slice(0, 5).map((item, index) => (
+                          <div
+                            key={`${item.id || item.modName}-${item.time}-${index}`}
+                            className="flex items-center justify-between gap-3"
+                          >
+                            <span>
+                              {item.action === "restore" ? "Restore" : "Install"}: {item.modName}
+                            </span>
+                            <strong className="text-white/70">
+                              {new Date(item.time).toLocaleString()}
+                            </strong>
+                          </div>
+                        ))}
+                        {(appStats?.recentInstalls || []).length === 0 && (
+                          <div>История установок пока пустая.</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -5807,6 +6402,48 @@ function App() {
               </div>
             )}
 
+            <div className="mt-6 rounded-3xl border border-white/10 bg-black/25 p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-lg font-black">Восстановление и backup</div>
+                  <div className="text-sm text-white/45">
+                    Здесь видно, какие моды сейчас записаны как установленные. Restore вернёт
+                    файлы из резервной копии и очистит временные архивы.
+                  </div>
+                </div>
+                <RotateCcw size={22} className="text-white/45" />
+              </div>
+
+              <div className="grid gap-3">
+                {installedBackupItems.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-white/45">
+                    Установленных модов пока нет.
+                  </div>
+                ) : (
+                  installedBackupItems.map(({ id, installed, mod }) => (
+                    <div
+                      key={id}
+                      className="grid grid-cols-[1fr_auto] items-center gap-4 rounded-2xl border border-white/10 bg-white/[.04] p-4"
+                    >
+                      <div>
+                        <div className="font-black">{mod?.name || id}</div>
+                        <div className="mt-1 text-sm text-white/45">
+                          v{getDisplayVersion(installed.version)} · файлов: {installed.files.length}
+                        </div>
+                      </div>
+                      <PrimaryButton
+                        disabled={loading}
+                        onClick={() => void restoreInstalledBackup(id)}
+                      >
+                        <RotateCcw size={18} />
+                        Восстановить
+                      </PrimaryButton>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div className="mt-6 flex flex-wrap gap-3">
               <PrimaryButton onClick={() => checkForAppUpdate(false)}>
                 <RefreshCw size={18} />
@@ -5820,6 +6457,10 @@ function App() {
                 <Download size={18} />
                 Скачать обновление
               </PurpleButton>
+              <PrimaryButton disabled={loading} onClick={submitDiagnosticReport}>
+                <Send size={18} />
+                Отправить отчет
+              </PrimaryButton>
             </div>
           </ToolPanel>
         )}
