@@ -15,6 +15,7 @@
     "USERS_PATH": "admin/users.json",
     "PRESENCE_PATH": "admin/presence.json",
     "SUPPORT_PATH": "admin/support.json",
+    "INSTALL_STATS_PATH": "admin/install-stats.json",
     "LATEST_PATH": "latest.json",
     "GITHUB_BRANCH": "main",
     "FRONTEND_ORIGIN": "http://localhost:8080,http://127.0.0.1:8080,http://tauri.localhost,tauri://localhost",
