@@ -295,6 +295,11 @@ type AuthResult = {
   message?: string;
 };
 
+type PendingModLink = {
+  modId: string;
+  variantId?: string;
+};
+
 type AdminCatalogIssue = {
   key: string;
   message: string;
@@ -321,9 +326,10 @@ const ADMIN_API_URL_KEY = "hardy-admin-api-url";
 const ADMIN_TOKEN_KEY = "hardy-admin-token";
 const ADMIN_DEEP_LINK_PROTOCOL = "hardy-mods:";
 const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev";
+const PENDING_MOD_LINK_KEY = "hardy-pending-mod-link";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.87";
+const APP_VERSION = "0.1.88";
 const FAVORITES_KEY = "hardy-favorites";
 const INSTALL_HISTORY_KEY = "hardy-install-history";
 const NOTIFICATIONS_KEY = "hardy-notifications";
@@ -1588,6 +1594,59 @@ function parseAdminConnectionUrl(rawUrl: string) {
   }
 }
 
+function parseModDeepLinkUrl(rawUrl: string): PendingModLink | null {
+  try {
+    const url = new URL(rawUrl);
+    const protocolOk =
+      url.protocol === ADMIN_DEEP_LINK_PROTOCOL || url.protocol === "http:" || url.protocol === "https:";
+
+    if (!protocolOk) return null;
+
+    const host = url.hostname.toLowerCase();
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const modId =
+      url.searchParams.get("mod_id")?.trim() ||
+      url.searchParams.get("modId")?.trim() ||
+      (host === "mod" ? pathParts[0] : "") ||
+      (pathParts[0] === "mod" ? pathParts[1] : "");
+
+    if (!modId) return null;
+
+    return {
+      modId: sanitizeId(modId, modId),
+      variantId:
+        url.searchParams.get("variant_id")?.trim() ||
+        url.searchParams.get("variantId")?.trim() ||
+        undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readPendingModLink(): PendingModLink | null {
+  return readJsonStorage<PendingModLink | null>(PENDING_MOD_LINK_KEY, null);
+}
+
+function writePendingModLink(link: PendingModLink | null) {
+  if (!link) {
+    window.localStorage.removeItem(PENDING_MOD_LINK_KEY);
+    return;
+  }
+
+  writeJsonStorage(PENDING_MOD_LINK_KEY, link);
+}
+
+function buildPublicModUrl(modId: string, variantId?: string) {
+  const url = new URL(`/mod/${encodeURIComponent(modId)}`, DEFAULT_ADMIN_API_URL);
+
+  if (variantId) {
+    url.searchParams.set("variant", variantId);
+  }
+
+  return url.toString();
+}
+
 function App() {
   const [page, setPage] = useState<Page>("home");
   const [initialAdminConnection] = useState(readInitialAdminConnection);
@@ -1603,6 +1662,9 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedMod, setSelectedMod] = useState<ModItem | null>(null);
   const [modGalleryIndex, setModGalleryIndex] = useState(0);
+  const [pendingModLink, setPendingModLink] = useState<PendingModLink | null>(() =>
+    readPendingModLink(),
+  );
   const [adminCategories, setAdminCategories] = useState<Category[]>([createAdminCategory()]);
   const [adminImportText, setAdminImportText] = useState("");
   const [releaseVersion, setReleaseVersion] = useState(APP_VERSION);
@@ -1753,30 +1815,43 @@ function App() {
       })
       .catch(() => undefined);
 
-    function acceptAdminUrls(urls: string[] | null) {
+    function acceptDeepLinks(urls: string[] | null) {
       if (cancelled || !urls) return;
 
       for (const rawUrl of urls) {
         const connection = parseAdminConnectionUrl(rawUrl);
+        const modLink = parseModDeepLinkUrl(rawUrl);
 
-        if (!connection) continue;
+        if (modLink) {
+          void bringAppToFront();
+          writePendingModLink(modLink);
+          setPendingModLink(modLink);
+          setStatus("Ссылка на мод получена. Открываю карточку...");
+        }
 
-        void bringAppToFront();
-        window.localStorage.setItem(ADMIN_API_URL_KEY, connection.apiUrl);
-        window.localStorage.setItem(ADMIN_TOKEN_KEY, connection.token);
-        setAdminApiUrl(connection.apiUrl);
-        setAdminToken(connection.token);
-        setPage("home");
-        setStatus("Вход через Discord завершён. Проверяю сессию...");
-        break;
+        if (connection) {
+          void bringAppToFront();
+          window.localStorage.setItem(ADMIN_API_URL_KEY, connection.apiUrl);
+          window.localStorage.setItem(ADMIN_TOKEN_KEY, connection.token);
+          setAdminApiUrl(connection.apiUrl);
+          setAdminToken(connection.token);
+          setPage("home");
+          setStatus(
+            modLink
+              ? "Вход через Discord завершён. Сейчас открою мод..."
+              : "Вход через Discord завершён. Проверяю сессию...",
+          );
+        }
+
+        if (connection || modLink) break;
       }
     }
 
     getCurrent()
-      .then(acceptAdminUrls)
+      .then(acceptDeepLinks)
       .catch(() => undefined);
 
-    const unlistenPromise = onOpenUrl(acceptAdminUrls);
+    const unlistenPromise = onOpenUrl(acceptDeepLinks);
 
     return () => {
       cancelled = true;
@@ -1925,6 +2000,31 @@ function App() {
       unlistenPromise.then((unlisten) => unlisten());
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !pendingModLink || categories.length === 0) return;
+
+    const targetId = sanitizeId(pendingModLink.modId, pendingModLink.modId);
+
+    for (const category of categories) {
+      const mod = category.mods.find((item) => sanitizeId(item.id, item.id) === targetId);
+
+      if (mod) {
+        writePendingModLink(null);
+        setPendingModLink(null);
+        openModDetail(category, mod);
+        setStatus(`Открыт мод из ссылки: ${mod.name}`);
+        return;
+      }
+    }
+
+    writePendingModLink(null);
+    setPendingModLink(null);
+    openCatalog();
+    setStatus(`Мод из ссылки не найден: ${pendingModLink.modId}`);
+    // openCatalog/openModDetail are local function declarations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, isAuthenticated, pendingModLink]);
 
   useEffect(() => {
     if (page !== "rpfExplorer" || rpfExplorerPath || !isTauriRuntime()) return;
@@ -4948,17 +5048,27 @@ function App() {
                 <div className="catalog-kicker">Карточка мода</div>
                 <div className="mod-detail-title-row">
                   <h2>{selectedMod.name}</h2>
-                  <button
-                    type="button"
-                    onClick={() => toggleFavoriteMod(selectedMod.id)}
-                    className={
-                      favoriteMods.includes(selectedMod.id)
-                        ? "favorite-button favorite-button--active"
-                        : "favorite-button"
-                    }
-                  >
-                    <Star size={20} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyText(buildPublicModUrl(selectedMod.id), "Ссылка на мод")}
+                      className="favorite-button"
+                      title="Скопировать ссылку на мод"
+                    >
+                      <ExternalLink size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteMod(selectedMod.id)}
+                      className={
+                        favoriteMods.includes(selectedMod.id)
+                          ? "favorite-button favorite-button--active"
+                          : "favorite-button"
+                      }
+                    >
+                      <Star size={20} />
+                    </button>
+                  </div>
                 </div>
                 <ModDescriptionPanel description={selectedMod.description} />
 
