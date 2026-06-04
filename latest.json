@@ -1,11 +1,11 @@
 {
-  "version": "0.1.85",
-  "notes": "Добавлены живой FAQ, центр уведомлений, избранное, история установок, диагностика GTA, красивый стартовый экран, обновлённая админка и короткие понятные ошибки RPF.",
-  "pub_date": "2026-06-02T14:04:03.500Z",
+  "version": "0.1.87",
+  "notes": "Admin uploads, RPF builder, backup manager, validation, reports, and install stats",
+  "pub_date": "2026-06-04T14:10:12.192Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTBQcmFWU1F2NmJ2Q2tyM3pYZGltOTFJT002S0Z1N2VPVWNGdXptOXZSWTRnTzVtYmNkVEFseE9SaXQwMW9CcjFTTG9McUVDK1Mybmw3UUU5a3g0K3dnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNDA5MDEzCWZpbGU6SGFyZHkgTU9EU18wLjEuODVfeDY0LXNldHVwLmV4ZQo5K3JBd2ozQWhuRjZPZi9NRkNiemxQL1dWdlRXcVNSbTlnVWpTSXNyYi82VzRzZ2xWeHgwUU92UzAyQTR0RTVjUFRaRTROenUxQS92MVI4NzB6YWlBZz09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.85/Hardy.MODS_0.1.85_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZS9XbkhjbmJkbGcybitGYmpuVi9xWU45R1g4Nk5zc1ZPalRnUUhLRXdCUzR6dlZucXovZlliMy9kS0NQTit4aXp4OXlvZVRhdTJqQXp2ZGJXSG55YUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTgyMTk2CWZpbGU6SGFyZHkgTU9EU18wLjEuODdfeDY0LXNldHVwLmV4ZQo3bVRYTGJIZC9jQUdrNkhvUzE4cUZ4c2lMQUtxMXdlMWdPQm53RVl4YkVxdCtnR1Y0UEZtZWd5RmJlNXcwTXRZS3RxL3FBbzM1SDlGbXBVL2REeDdDQT09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.87/Hardy.MODS_0.1.87_x64-setup.exe"
     }
   }
 }
