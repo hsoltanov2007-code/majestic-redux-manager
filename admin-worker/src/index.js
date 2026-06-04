@@ -16,6 +16,20 @@ export default {
         return json(request, env, { ok: true, service: "majestic-redux-manager" });
       }
 
+      if (route === "GET /download/latest") {
+        return redirectLatestInstaller(env);
+      }
+
+      if (request.method === "GET" && url.pathname.startsWith("/mod/")) {
+        const modId = decodeURIComponent(url.pathname.slice("/mod/".length).split("/")[0] || "");
+        return modLandingPage(request, env, modId);
+      }
+
+      if (request.method === "GET" && url.pathname.startsWith("/m/")) {
+        const modId = decodeURIComponent(url.pathname.slice("/m/".length).split("/")[0] || "");
+        return modLandingPage(request, env, modId);
+      }
+
       if (route === "GET /auth/discord/start") {
         return startDiscordAuth(request, env);
       }
@@ -304,6 +318,149 @@ function buildAppLoginUrl(request, sessionToken) {
   } catch {
     return "hardy-mods://auth";
   }
+}
+
+async function modLandingPage(request, env, modId) {
+  const cleanModId = sanitizeSlug(modId);
+
+  if (!cleanModId) {
+    return publicErrorPage("Мод не найден", "В ссылке нет ID мода.", 404);
+  }
+
+  const variantId = sanitizeSlug(new URL(request.url).searchParams.get("variant") || "");
+  const mod = await findCatalogMod(env, cleanModId).catch(() => null);
+  const title = mod?.name || cleanModId;
+  const description = mod?.description || "Открой мод в Hardy MODS или скачай последнюю версию приложения.";
+  const image = mod?.image || "";
+  const appUrl = buildAppModUrl(cleanModId, variantId);
+  const downloadUrl = `${new URL(request.url).origin}/download/latest`;
+
+  return new Response(
+    `<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)} · Hardy MODS</title>
+    <meta property="og:title" content="${escapeHtml(title)} · Hardy MODS" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    ${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ""}
+    <style>
+      * { box-sizing:border-box; }
+      body { min-height:100vh; margin:0; display:grid; place-items:center; background:#f4f4f5; color:#09090b; font:16px Inter, system-ui, sans-serif; }
+      body:before { content:""; position:fixed; inset:0; background:radial-gradient(circle at 72% 22%, rgba(0,0,0,.12), transparent 24rem), linear-gradient(135deg, #fff, #d9d9dd); pointer-events:none; }
+      main { position:relative; width:min(980px, calc(100vw - 32px)); display:grid; grid-template-columns:1fr 1fr; overflow:hidden; border:1px solid rgba(0,0,0,.12); border-radius:28px; background:rgba(255,255,255,.74); box-shadow:0 30px 110px rgba(0,0,0,.18); backdrop-filter:blur(18px); }
+      section { padding:38px; }
+      .kicker { display:inline-flex; gap:10px; align-items:center; margin-bottom:18px; border:1px solid rgba(0,0,0,.12); border-radius:999px; padding:8px 12px; color:#52525b; font-size:12px; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
+      h1 { margin:0; font-size:46px; line-height:.95; letter-spacing:0; }
+      p { color:#52525b; line-height:1.7; }
+      .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
+      a, button { border:0; border-radius:16px; padding:15px 20px; font:900 15px system-ui; text-decoration:none; cursor:pointer; }
+      .primary { background:#09090b; color:white; box-shadow:0 18px 42px rgba(0,0,0,.24); }
+      .ghost { background:white; color:#09090b; border:1px solid rgba(0,0,0,.12); }
+      .media { min-height:430px; background:#111; display:grid; place-items:center; }
+      .media img { width:100%; height:100%; object-fit:cover; filter:saturate(1.08) contrast(1.02); }
+      .fallback { color:white; font-size:76px; font-weight:1000; letter-spacing:.02em; }
+      .status { margin-top:20px; border:1px solid rgba(0,0,0,.10); border-radius:16px; padding:14px; color:#52525b; background:rgba(255,255,255,.7); }
+      @media (max-width:760px) { main { grid-template-columns:1fr; } .media { min-height:260px; order:-1; } h1 { font-size:34px; } section { padding:26px; } }
+    </style>
+    <script>
+      const appUrl = ${JSON.stringify(appUrl)};
+      window.addEventListener("load", () => {
+        const status = document.querySelector(".status");
+        setTimeout(() => { window.location.href = appUrl; }, 350);
+        setTimeout(() => {
+          if (status) status.textContent = "Если приложение не открылось, скачай Hardy MODS и потом нажми Открыть в приложении.";
+        }, 1800);
+      });
+    </script>
+  </head>
+  <body>
+    <main>
+      <section>
+        <div class="kicker">Hardy MODS Share Link</div>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(description)}</p>
+        <div class="actions">
+          <a class="primary" href="${escapeHtml(appUrl)}">Открыть в приложении</a>
+          <a class="ghost" href="${escapeHtml(downloadUrl)}">Скачать Hardy MODS</a>
+        </div>
+        <div class="status">Пробую открыть приложение автоматически...</div>
+      </section>
+      <div class="media">
+        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : `<div class="fallback">HM</div>`}
+      </div>
+    </main>
+  </body>
+</html>`,
+    {
+      headers: {
+        "Content-Type": "text/html;charset=utf-8",
+        "Cache-Control": "public, max-age=120",
+      },
+    },
+  );
+}
+
+async function redirectLatestInstaller(env) {
+  const latestUrl = `https://github.com/${env.MANAGER_REPO}/releases/latest/download/${env.LATEST_PATH || "latest.json"}`;
+
+  try {
+    const response = await fetch(latestUrl, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (response.ok) {
+      const manifest = await response.json();
+      const installerUrl = manifest.platforms?.["windows-x86_64"]?.url;
+
+      if (installerUrl) {
+        return new Response(null, {
+          headers: { Location: installerUrl },
+          status: 302,
+        });
+      }
+    }
+  } catch {
+    // Fall back to the release page below.
+  }
+
+  return new Response(null, {
+    headers: { Location: `https://github.com/${env.MANAGER_REPO}/releases/latest` },
+    status: 302,
+  });
+}
+
+async function findCatalogMod(env, modId) {
+  const catalog = normalizeCatalogDocument(
+    await readJsonFile(env, env.DATA_REPO, env.CATALOG_PATH || "redux.json"),
+  );
+
+  for (const category of catalog.categories || []) {
+    const mod = (category.mods || []).find((item) => sanitizeSlug(item.id) === modId);
+
+    if (mod) return mod;
+  }
+
+  return null;
+}
+
+function buildAppModUrl(modId, variantId = "") {
+  const appUrl = new URL("hardy-mods://mod");
+  appUrl.searchParams.set("mod_id", modId);
+  if (variantId) appUrl.searchParams.set("variant_id", variantId);
+  return appUrl.toString();
+}
+
+function publicErrorPage(title, detail, status = 400) {
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8" /><title>${escapeHtml(
+      title,
+    )}</title><style>body{background:#f4f4f5;color:#111;font:16px system-ui;padding:40px}main{max-width:640px}</style></head><body><main><h1>${escapeHtml(
+      title,
+    )}</h1><p>${escapeHtml(detail)}</p></main></body></html>`,
+    { headers: { "Content-Type": "text/html;charset=utf-8" }, status },
+  );
 }
 
 function authErrorPage(title, detail = "") {
@@ -964,6 +1121,15 @@ function sanitizeTag(value) {
   return String(value || "")
     .trim()
     .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
+function sanitizeSlug(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 120);
 }
