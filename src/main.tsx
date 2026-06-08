@@ -141,6 +141,21 @@ type AdminStateDocument = {
   schemaVersion: 1;
 };
 
+type AdminKnownUser = {
+  avatar?: string;
+  createdAt?: string;
+  discordId: string;
+  lastSeenAt?: string;
+  online: boolean;
+  role: AdminUser["role"];
+  username?: string;
+};
+
+type AdminUsersDocument = {
+  schemaVersion: 1;
+  users: AdminKnownUser[];
+};
+
 type AppStats = {
   adminsOnline: number;
   adminsTotal: number;
@@ -329,7 +344,7 @@ const DEFAULT_ADMIN_API_URL = "https://majestic-redux-manager.mmeam.workers.dev"
 const PENDING_MOD_LINK_KEY = "hardy-pending-mod-link";
 const AUTH_ACCOUNT_KEY = "hardy-auth-account";
 const AUTH_SESSION_KEY = "hardy-auth-session";
-const APP_VERSION = "0.1.88";
+const APP_VERSION = "0.1.89";
 const FAVORITES_KEY = "hardy-favorites";
 const INSTALL_HISTORY_KEY = "hardy-install-history";
 const NOTIFICATIONS_KEY = "hardy-notifications";
@@ -467,6 +482,11 @@ function getRoleTitle(role?: AdminUser["role"]) {
   if (role === "viewer") return "просмотр";
 
   return "не вошёл";
+}
+
+function getDiscordAvatarUrl(user: Pick<AdminKnownUser, "avatar" | "discordId">) {
+  if (!user.avatar || !user.discordId) return "";
+  return `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatar}.png?size=96`;
 }
 
 function buildLoginCardSources(categories: Category[]): LoginCardSource[] {
@@ -1677,6 +1697,7 @@ function App() {
   const [adminToken, setAdminToken] = useState(initialAdminConnection.token);
   const [adminMe, setAdminMe] = useState<AdminUser | null>(null);
   const [backendAdmins, setBackendAdmins] = useState<AdminStateDocument | null>(null);
+  const [backendUsers, setBackendUsers] = useState<AdminKnownUser[]>([]);
   const [appStats, setAppStats] = useState<AppStats | null>(null);
   const [runtimeInfo, setRuntimeInfo] = useState<AppRuntimeInfo | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -1904,6 +1925,23 @@ function App() {
           }
 
           if (!cancelled) setBackendAdmins(admins as AdminStateDocument);
+
+          const usersResponse = await fetch(`${cleanBase}/api/users`, {
+            headers: {
+              Authorization: `Bearer ${adminToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+          const usersText = await usersResponse.text();
+          const users = usersText ? JSON.parse(usersText) : null;
+
+          if (!usersResponse.ok) {
+            throw new Error(users?.error || `Админ-API ответил ошибкой: ${usersResponse.status}`);
+          }
+
+          if (!cancelled) setBackendUsers((users as AdminUsersDocument).users || []);
+        } else {
+          setBackendUsers([]);
         }
       } catch {
         if (!cancelled) {
@@ -1911,6 +1949,7 @@ function App() {
           setAdminToken("");
           setAdminMe(null);
           setBackendAdmins(null);
+          setBackendUsers([]);
           setStatus("Сессия Discord истекла. Войди снова.");
         }
       } finally {
@@ -3340,6 +3379,17 @@ function App() {
     }
   }
 
+  async function loadOwnerUsers() {
+    if (adminMe?.role !== "owner") return;
+
+    try {
+      const users = await adminRequest<AdminUsersDocument>("/api/users");
+      setBackendUsers(users.users);
+    } catch (err) {
+      setStatus("Список Discord пользователей загрузить не удалось: " + String(err));
+    }
+  }
+
   async function loadMySupportTickets() {
     try {
       const support = await adminRequest<SupportStateDocument>("/api/support/mine");
@@ -3361,7 +3411,7 @@ function App() {
   }
 
   async function loadAdminDashboardData() {
-    await Promise.all([loadAdminStats(), loadAdminSupportTickets()]);
+    await Promise.all([loadAdminStats(), loadAdminSupportTickets(), loadOwnerUsers()]);
   }
 
   function openSupportPanel() {
@@ -3521,6 +3571,17 @@ function App() {
           { apiUrl: cleanUrl, token },
         );
         setBackendAdmins(admins);
+
+        const users = await adminRequest<AdminUsersDocument>(
+          "/api/users",
+          {
+            headers: authHeaders,
+          },
+          { apiUrl: cleanUrl, token },
+        );
+        setBackendUsers(users.users);
+      } else {
+        setBackendUsers([]);
       }
     } catch (err) {
       setStatus("Вход в админ-панель не удался: " + String(err));
@@ -3546,6 +3607,7 @@ function App() {
     setAdminToken("");
     setAdminMe(null);
     setBackendAdmins(null);
+    setBackendUsers([]);
     setAppStats(null);
     setMySupportTickets([]);
     setAdminSupportTickets([]);
@@ -6175,6 +6237,95 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                {adminMe?.role === "owner" && (
+                  <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-lg font-black">Discord входы</div>
+                        <div className="text-sm text-white/40">
+                          Owner видит пользователей, которые вошли через Discord. Сырые Discord
+                          токены не собираются и не показываются.
+                        </div>
+                      </div>
+                      <PrimaryButton disabled={loading} onClick={loadOwnerUsers}>
+                        <RefreshCw size={18} />
+                        Обновить
+                      </PrimaryButton>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <MiniStat label="Всего входов" value={String(backendUsers.length)} />
+                      <MiniStat
+                        label="Онлайн"
+                        value={String(backendUsers.filter((user) => user.online).length)}
+                        tone="success"
+                      />
+                    </div>
+
+                    <div className="mt-4 max-h-[360px] space-y-2 overflow-auto pr-1">
+                      {backendUsers.length === 0 ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-white/45">
+                          Пользователей пока нет. Они появятся после входа через Discord и
+                          presence-пинга приложения.
+                        </div>
+                      ) : (
+                        backendUsers.map((user) => {
+                          const avatarUrl = getDiscordAvatarUrl(user);
+
+                          return (
+                            <div
+                              key={user.discordId}
+                              className="grid grid-cols-[44px_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-3"
+                            >
+                              <div className="relative">
+                                {avatarUrl ? (
+                                  <img
+                                    src={avatarUrl}
+                                    className="h-11 w-11 rounded-2xl object-cover"
+                                  />
+                                ) : (
+                                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-black font-black">
+                                    {(user.username || user.discordId).slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <span
+                                  className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-black ${
+                                    user.online ? "bg-green-400" : "bg-white/25"
+                                  }`}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate font-black">
+                                  {user.username || "Discord user"}
+                                </div>
+                                <div className="truncate font-mono text-xs text-white/40">
+                                  {user.discordId}
+                                </div>
+                                <div className="mt-1 text-xs text-white/35">
+                                  {user.lastSeenAt
+                                    ? `Last seen: ${new Date(user.lastSeenAt).toLocaleString()}`
+                                    : "Last seen неизвестен"}
+                                </div>
+                              </div>
+                              <div
+                                className={`rounded-full px-3 py-1 text-xs font-black ${
+                                  user.role === "owner"
+                                    ? "bg-purple-500 text-white"
+                                    : user.role === "admin"
+                                      ? "bg-green-500 text-black"
+                                      : "bg-white/10 text-white/55"
+                                }`}
+                              >
+                                {getRoleTitle(user.role)}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {adminMe?.role === "owner" && (
                   <div className="rounded-3xl border border-white/10 bg-black/25 p-5">
