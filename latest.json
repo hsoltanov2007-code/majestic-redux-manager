@@ -1,11 +1,11 @@
 {
-  "version": "0.1.88",
-  "notes": "Public mod share links with app deep-link open and latest installer fallback",
-  "pub_date": "2026-06-04T14:35:32.068Z",
+  "version": "0.1.89",
+  "notes": "Beautiful public mod pages and owner-only Discord login activity list",
+  "pub_date": "2026-06-08T22:26:28.522Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTZ0dVAzRmZZa0VYRllPRDlZMnQ2bW0zaE5xYkc4RGZrVW9uMll4WCtvazhwc1liSGlFTC9vcFhpYkF2WUt6R3RtQ09HM3g2aEhRL1UxMzN0WHJ3Y2c4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNTgzNzAxCWZpbGU6SGFyZHkgTU9EU18wLjEuODhfeDY0LXNldHVwLmV4ZQpHdzRJaVFaSDg3VjNDL05hVktuQTVLSHhSSDJmWVhXcC8wcHg3UysrdHJnZC91Z0NldlJYRS8yTW1pSnVRa3l6OFZkU0IzNnl1UWpWMnVuUDRlMHJEQT09Cg==",
-      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.88/Hardy.MODS_0.1.88_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSRHc1MnV1aGdMZTR0R093TDlJRmxiZEx4KzB2NmZNdXVoZGk2YVJHZVlRbTNhbmJueFZaOFVSVEd3TDdnUmJvazFVVUFlNHdZdG5yYnNJYXJBeHBnakpBUnM4RFl1N3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwOTU3NTU4CWZpbGU6SGFyZHkgTU9EU18wLjEuODlfeDY0LXNldHVwLmV4ZQpsdVJ4VzN3M2M4ZGtJNFpaNmtNeEhBMEwzS3lxSHNMMlMvdGNzTzdUMDIwcmtKUDFWQXZYR29zTEZmOCtER1JsUGFZSnBnMXdoYTBKajBDL2RwemFDdz09Cg==",
+      "url": "https://github.com/hsoltanov2007-code/majestic-redux-manager/releases/download/v0.1.89/Hardy.MODS_0.1.89_x64-setup.exe"
     }
   }
 }
