@@ -75,6 +75,11 @@ export default {
         return json(request, env, await getAdminState(env));
       }
 
+      if (route === "GET /api/users") {
+        await requireRole(request, env, "owner");
+        return json(request, env, await getOwnerVisibleUsers(env));
+      }
+
       if (route === "GET /api/support/mine") {
         const user = await requireUser(request, env);
         return json(request, env, await getSupportForUser(env, user.id));
@@ -332,6 +337,14 @@ async function modLandingPage(request, env, modId) {
   const title = mod?.name || cleanModId;
   const description = mod?.description || "Открой мод в Hardy MODS или скачай последнюю версию приложения.";
   const image = mod?.image || "";
+  const version = mod?.version ? `v${mod.version}` : "latest";
+  const size = mod?.size || "Auto install";
+  const variantCount = Array.isArray(mod?.variants) ? mod.variants.length : 0;
+  const patchCount =
+    (Array.isArray(mod?.rpfPatches) ? mod.rpfPatches.length : 0) +
+    (Array.isArray(mod?.variants)
+      ? mod.variants.reduce((total, variant) => total + (variant.rpfPatches?.length || 0), 0)
+      : 0);
   const appUrl = buildAppModUrl(cleanModId, variantId);
   const downloadUrl = `${new URL(request.url).origin}/download/latest`;
 
@@ -347,50 +360,222 @@ async function modLandingPage(request, env, modId) {
     ${image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : ""}
     <style>
       * { box-sizing:border-box; }
-      body { min-height:100vh; margin:0; display:grid; place-items:center; background:#f4f4f5; color:#09090b; font:16px Inter, system-ui, sans-serif; }
-      body:before { content:""; position:fixed; inset:0; background:radial-gradient(circle at 72% 22%, rgba(0,0,0,.12), transparent 24rem), linear-gradient(135deg, #fff, #d9d9dd); pointer-events:none; }
-      main { position:relative; width:min(980px, calc(100vw - 32px)); display:grid; grid-template-columns:1fr 1fr; overflow:hidden; border:1px solid rgba(0,0,0,.12); border-radius:28px; background:rgba(255,255,255,.74); box-shadow:0 30px 110px rgba(0,0,0,.18); backdrop-filter:blur(18px); }
-      section { padding:38px; }
-      .kicker { display:inline-flex; gap:10px; align-items:center; margin-bottom:18px; border:1px solid rgba(0,0,0,.12); border-radius:999px; padding:8px 12px; color:#52525b; font-size:12px; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
-      h1 { margin:0; font-size:46px; line-height:.95; letter-spacing:0; }
-      p { color:#52525b; line-height:1.7; }
-      .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
-      a, button { border:0; border-radius:16px; padding:15px 20px; font:900 15px system-ui; text-decoration:none; cursor:pointer; }
-      .primary { background:#09090b; color:white; box-shadow:0 18px 42px rgba(0,0,0,.24); }
-      .ghost { background:white; color:#09090b; border:1px solid rgba(0,0,0,.12); }
-      .media { min-height:430px; background:#111; display:grid; place-items:center; }
-      .media img { width:100%; height:100%; object-fit:cover; filter:saturate(1.08) contrast(1.02); }
-      .fallback { color:white; font-size:76px; font-weight:1000; letter-spacing:.02em; }
-      .status { margin-top:20px; border:1px solid rgba(0,0,0,.10); border-radius:16px; padding:14px; color:#52525b; background:rgba(255,255,255,.7); }
-      @media (max-width:760px) { main { grid-template-columns:1fr; } .media { min-height:260px; order:-1; } h1 { font-size:34px; } section { padding:26px; } }
+      :root { color-scheme:light; }
+      body {
+        min-height:100vh;
+        margin:0;
+        overflow-x:hidden;
+        background:
+          radial-gradient(circle at 16% 18%, rgba(255,255,255,.96), transparent 28rem),
+          radial-gradient(circle at 74% 18%, rgba(210,214,220,.72), transparent 34rem),
+          linear-gradient(135deg, #fbfbfc 0%, #e8e8eb 46%, #cfd1d5 100%);
+        color:#09090b;
+        font:16px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body:before {
+        content:"";
+        position:fixed;
+        inset:0;
+        pointer-events:none;
+        background:
+          linear-gradient(90deg, rgba(8,8,10,.045) 1px, transparent 1px),
+          linear-gradient(rgba(8,8,10,.04) 1px, transparent 1px);
+        background-size:72px 72px;
+        mask-image:radial-gradient(circle at center, black, transparent 72%);
+      }
+      body:after {
+        content:"";
+        position:fixed;
+        inset:auto 0 0 0;
+        height:28vh;
+        pointer-events:none;
+        background:linear-gradient(transparent, rgba(255,255,255,.52));
+      }
+      .shell {
+        position:relative;
+        z-index:1;
+        min-height:100vh;
+        display:grid;
+        grid-template-rows:auto 1fr auto;
+        padding:22px;
+      }
+      header {
+        width:min(1180px, 100%);
+        margin:0 auto;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        border:1px solid rgba(10,10,12,.09);
+        border-radius:24px;
+        background:rgba(255,255,255,.64);
+        padding:12px 14px 12px 18px;
+        box-shadow:0 20px 70px rgba(20,20,28,.08);
+        backdrop-filter:blur(22px);
+      }
+      .brand { display:flex; align-items:center; gap:12px; font-weight:1000; letter-spacing:.08em; text-transform:uppercase; }
+      .brand-mark {
+        display:grid;
+        place-items:center;
+        width:42px;
+        height:42px;
+        border-radius:15px;
+        background:#09090b;
+        color:#fff;
+        box-shadow:0 16px 38px rgba(0,0,0,.22);
+      }
+      .header-pill { border:1px solid rgba(10,10,12,.1); border-radius:999px; padding:10px 14px; color:#4b4b52; font-size:13px; font-weight:850; background:rgba(255,255,255,.66); }
+      main {
+        width:min(1180px, 100%);
+        margin:58px auto 42px;
+        display:grid;
+        grid-template-columns:minmax(0,.92fr) minmax(420px,1.08fr);
+        align-items:stretch;
+        gap:18px;
+      }
+      .copy {
+        position:relative;
+        border:1px solid rgba(10,10,12,.1);
+        border-radius:34px;
+        background:rgba(255,255,255,.68);
+        padding:42px;
+        box-shadow:0 34px 100px rgba(24,24,32,.16);
+        backdrop-filter:blur(24px);
+      }
+      .copy:before {
+        content:"";
+        position:absolute;
+        inset:18px auto auto 18px;
+        width:80px;
+        height:3px;
+        border-radius:999px;
+        background:#09090b;
+        opacity:.9;
+      }
+      .kicker {
+        display:inline-flex;
+        gap:10px;
+        align-items:center;
+        margin:22px 0 20px;
+        border:1px solid rgba(0,0,0,.12);
+        border-radius:999px;
+        padding:8px 13px;
+        color:#4f5056;
+        font-size:12px;
+        font-weight:950;
+        letter-spacing:.18em;
+        text-transform:uppercase;
+        background:rgba(255,255,255,.62);
+      }
+      .kicker:before { content:""; width:7px; height:7px; border-radius:999px; background:#09090b; box-shadow:0 0 18px rgba(0,0,0,.34); }
+      h1 { margin:0; max-width:620px; font-size:clamp(42px, 6vw, 82px); line-height:.88; letter-spacing:0; text-transform:uppercase; }
+      p { max-width:560px; color:#5b5c63; line-height:1.75; font-size:17px; }
+      .badges { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0 0; }
+      .badge { border:1px solid rgba(0,0,0,.1); border-radius:999px; background:rgba(255,255,255,.66); padding:9px 12px; color:#303036; font-size:13px; font-weight:900; }
+      .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; }
+      a { display:inline-flex; align-items:center; justify-content:center; min-height:54px; border-radius:17px; padding:0 22px; font:950 15px system-ui; text-decoration:none; transition:transform .18s ease, box-shadow .18s ease, background .18s ease; }
+      a:hover { transform:translateY(-2px); }
+      .primary { background:#09090b; color:white; box-shadow:0 22px 54px rgba(0,0,0,.26); }
+      .ghost { background:rgba(255,255,255,.8); color:#09090b; border:1px solid rgba(0,0,0,.12); box-shadow:0 14px 40px rgba(0,0,0,.08); }
+      .status { margin-top:22px; border:1px solid rgba(0,0,0,.10); border-radius:20px; padding:15px 16px; color:#5b5c63; background:rgba(255,255,255,.66); line-height:1.55; }
+      .media-card {
+        position:relative;
+        min-height:560px;
+        overflow:hidden;
+        border:1px solid rgba(10,10,12,.1);
+        border-radius:34px;
+        background:#111;
+        box-shadow:0 34px 100px rgba(24,24,32,.18);
+      }
+      .media-card:before {
+        content:"";
+        position:absolute;
+        inset:0;
+        z-index:2;
+        background:linear-gradient(90deg, rgba(0,0,0,.28), transparent 42%), linear-gradient(0deg, rgba(0,0,0,.5), transparent 45%);
+        pointer-events:none;
+      }
+      .media-card:after {
+        content:"";
+        position:absolute;
+        inset:18px;
+        z-index:3;
+        border:1px solid rgba(255,255,255,.26);
+        border-radius:26px;
+        pointer-events:none;
+      }
+      .media-card img { width:100%; height:100%; object-fit:cover; filter:saturate(1.1) contrast(1.04); transform:scale(1.015); }
+      .fallback { height:100%; min-height:560px; display:grid; place-items:center; color:white; background:linear-gradient(135deg,#08080a,#33343a); font-size:96px; font-weight:1000; letter-spacing:.02em; }
+      .media-caption {
+        position:absolute;
+        z-index:4;
+        left:30px;
+        right:30px;
+        bottom:28px;
+        display:flex;
+        align-items:end;
+        justify-content:space-between;
+        gap:18px;
+        color:white;
+      }
+      .caption-title { font-size:28px; font-weight:1000; text-transform:uppercase; text-shadow:0 12px 35px rgba(0,0,0,.75); }
+      .caption-chip { border:1px solid rgba(255,255,255,.22); border-radius:999px; background:rgba(0,0,0,.4); padding:10px 13px; font-size:12px; font-weight:950; letter-spacing:.14em; text-transform:uppercase; backdrop-filter:blur(12px); }
+      footer { width:min(1180px, 100%); margin:0 auto; color:#73747a; font-size:13px; }
+      @media (max-width:900px) {
+        .shell { padding:14px; }
+        header { border-radius:20px; }
+        .header-pill { display:none; }
+        main { grid-template-columns:1fr; margin-top:22px; }
+        .media-card { min-height:320px; order:-1; }
+        .fallback { min-height:320px; }
+        .copy { padding:28px; border-radius:28px; }
+        .media-caption { left:22px; right:22px; bottom:20px; }
+      }
     </style>
     <script>
       const appUrl = ${JSON.stringify(appUrl)};
       window.addEventListener("load", () => {
         const status = document.querySelector(".status");
-        setTimeout(() => { window.location.href = appUrl; }, 350);
+        setTimeout(() => { window.location.href = appUrl; }, 480);
         setTimeout(() => {
-          if (status) status.textContent = "Если приложение не открылось, скачай Hardy MODS и потом нажми Открыть в приложении.";
+          if (status) status.textContent = "Если приложение не открылось автоматически, скачай Hardy MODS или нажми кнопку открытия еще раз.";
         }, 1800);
       });
     </script>
   </head>
   <body>
-    <main>
-      <section>
-        <div class="kicker">Hardy MODS Share Link</div>
-        <h1>${escapeHtml(title)}</h1>
-        <p>${escapeHtml(description)}</p>
-        <div class="actions">
-          <a class="primary" href="${escapeHtml(appUrl)}">Открыть в приложении</a>
-          <a class="ghost" href="${escapeHtml(downloadUrl)}">Скачать Hardy MODS</a>
-        </div>
-        <div class="status">Пробую открыть приложение автоматически...</div>
-      </section>
-      <div class="media">
-        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : `<div class="fallback">HM</div>`}
-      </div>
-    </main>
+    <div class="shell">
+      <header>
+        <div class="brand"><span class="brand-mark">H</span><span>Hardy MODS</span></div>
+        <div class="header-pill">Secure share link · GTA V mods</div>
+      </header>
+      <main>
+        <section class="copy">
+          <div class="kicker">Mod share link</div>
+          <h1>${escapeHtml(title)}</h1>
+          <p>${escapeHtml(description)}</p>
+          <div class="badges">
+            <span class="badge">${escapeHtml(version)}</span>
+            <span class="badge">${escapeHtml(size)}</span>
+            <span class="badge">${variantCount > 0 ? `${variantCount} variants` : "One click install"}</span>
+            <span class="badge">${patchCount > 0 ? `${patchCount} RPF patches` : "Backup ready"}</span>
+          </div>
+          <div class="actions">
+            <a class="primary" href="${escapeHtml(appUrl)}">Открыть в приложении</a>
+            <a class="ghost" href="${escapeHtml(downloadUrl)}">Скачать Hardy MODS</a>
+          </div>
+          <div class="status">Открываю Hardy MODS автоматически...</div>
+        </section>
+        <aside class="media-card">
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : `<div class="fallback">HM</div>`}
+          <div class="media-caption">
+            <div class="caption-title">${escapeHtml(title)}</div>
+            <div class="caption-chip">Hardy Catalog</div>
+          </div>
+        </aside>
+      </main>
+      <footer>Hardy MODS is an unofficial fan tool. Open the link only if you trust the shared mod.</footer>
+    </div>
   </body>
 </html>`,
     {
@@ -682,6 +867,58 @@ async function getPresenceState(env) {
       users: {},
     };
   }
+}
+
+async function getOwnerVisibleUsers(env) {
+  const known = await getKnownUsersState(env);
+  const presence = await getPresenceState(env);
+  const cutoff = Date.now() - 1000 * 60 * 2.5;
+  const usersById = new Map();
+
+  for (const user of known.users || []) {
+    if (!user?.discordId) continue;
+    usersById.set(user.discordId, {
+      avatar: user.avatar || "",
+      createdAt: user.createdAt || "",
+      discordId: user.discordId,
+      lastSeenAt: user.lastSeenAt || "",
+      online: false,
+      role: user.role || "viewer",
+      username: user.username || "",
+    });
+  }
+
+  for (const [discordId, entry] of Object.entries(presence.users || {})) {
+    const seen = Date.parse(entry?.lastSeenAt || "");
+    const existing = usersById.get(discordId) || {
+      avatar: "",
+      createdAt: "",
+      discordId,
+      lastSeenAt: "",
+      online: false,
+      role: "viewer",
+      username: "",
+    };
+
+    usersById.set(discordId, {
+      ...existing,
+      avatar: entry?.avatar || existing.avatar || "",
+      lastSeenAt: entry?.lastSeenAt || existing.lastSeenAt || "",
+      online: Number.isFinite(seen) && seen >= cutoff,
+      role: entry?.role || existing.role || "viewer",
+      username: entry?.username || existing.username || "",
+    });
+  }
+
+  const users = [...usersById.values()].sort((left, right) => {
+    if (left.online !== right.online) return left.online ? -1 : 1;
+    return Date.parse(right.lastSeenAt || "0") - Date.parse(left.lastSeenAt || "0");
+  });
+
+  return {
+    schemaVersion: 1,
+    users,
+  };
 }
 
 async function updatePresence(env, user) {
